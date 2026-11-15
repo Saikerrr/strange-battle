@@ -1,6 +1,7 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const assert = require("node:assert/strict");
 const outputDirectory = path.join(__dirname, "..", "artifacts", "verification");
 
 const errors = [];
@@ -23,6 +24,129 @@ app.whenReady().then(async () => {
   );
   try {
     await win.loadFile(path.join(__dirname, "..", "index.html"));
+    fs.mkdirSync(outputDirectory, { recursive: true });
+    const evaluate = (code) =>
+      win.webContents.executeJavaScript(
+        `import('./game.js').then(async ({game:g})=>{${code}})`,
+      );
+    await evaluate(
+      `g.loop=()=>{};await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));g.goToTitle();g.render();`,
+    );
+    const snapshot = async (name) => {
+      await win.webContents.executeJavaScript(
+        "new Promise(resolve=>requestAnimationFrame(resolve))",
+      );
+      fs.writeFileSync(
+        path.join(outputDirectory, name + ".png"),
+        (await win.webContents.capturePage()).toPNG(),
+      );
+    };
+    await snapshot("main-menu");
+    win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+    win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+    assert.equal(
+      await evaluate("return g.game.state;"),
+      "title",
+      "Enter must not open PVP",
+    );
+    const pointFor = (id) =>
+      evaluate(
+        `const b=g.buttons['${id}'],r=g.canvas.getBoundingClientRect();return {x:Math.round(r.left+(b.x+b.w/2)/g.W*r.width),y:Math.round(r.top+(b.y+b.h/2)/g.H*r.height)};`,
+      );
+    const buttonPoint = (mode) => pointFor("play_" + mode);
+    const pvp = await buttonPoint("pvp");
+    win.webContents.sendInputEvent({ type: "mouseMove", ...pvp });
+    await snapshot("main-menu-hover");
+    assert.equal(
+      fs
+        .readFileSync(path.join(outputDirectory, "main-menu.png"))
+        .equals(
+          fs.readFileSync(path.join(outputDirectory, "main-menu-hover.png")),
+        ),
+      false,
+      "Hover must visibly change the button",
+    );
+    assert.equal(await evaluate("return g.canvas.style.cursor;"), "pointer");
+    win.webContents.sendInputEvent({
+      type: "mouseDown",
+      button: "left",
+      clickCount: 1,
+      ...pvp,
+    });
+    await snapshot("main-menu-pressed");
+    assert.equal(
+      fs
+        .readFileSync(path.join(outputDirectory, "main-menu-hover.png"))
+        .equals(
+          fs.readFileSync(path.join(outputDirectory, "main-menu-pressed.png")),
+        ),
+      false,
+      "Press must visibly compress the button",
+    );
+    assert.equal(await evaluate("return g.titlePointer.down;"), true);
+    win.webContents.sendInputEvent({
+      type: "mouseUp",
+      button: "left",
+      clickCount: 1,
+      ...pvp,
+    });
+    assert.equal(await evaluate("return g.game.mode;"), "pvp");
+    assert.equal(await evaluate("return g.game.state;"), "select");
+    for (const size of [
+      [1600, 900],
+      [1200, 800],
+      [1000, 600],
+    ]) {
+      win.setContentSize(...size);
+      await evaluate("g.resize();g.goToTitle();g.render();");
+      for (const mode of ["pvp", "pve", "practice"]) {
+        await evaluate("g.goToTitle();g.render();");
+        const p = await buttonPoint(mode);
+        win.webContents.sendInputEvent({ type: "mouseMove", ...p });
+        win.webContents.sendInputEvent({
+          type: "mouseDown",
+          button: "left",
+          clickCount: 1,
+          ...p,
+        });
+        win.webContents.sendInputEvent({
+          type: "mouseUp",
+          button: "left",
+          clickCount: 1,
+          ...p,
+        });
+        assert.deepEqual(await evaluate("return [g.game.state,g.game.mode];"), [
+          "select",
+          mode,
+        ]);
+        await evaluate("g.render();");
+        const back = await pointFor("back");
+        win.webContents.sendInputEvent({ type: "mouseMove", ...back });
+        win.webContents.sendInputEvent({
+          type: "mouseDown",
+          button: "left",
+          clickCount: 1,
+          ...back,
+        });
+        win.webContents.sendInputEvent({
+          type: "mouseUp",
+          button: "left",
+          clickCount: 1,
+          ...back,
+        });
+        assert.equal(
+          await evaluate("return g.game.state;"),
+          "title",
+          "Back must return to the new menu",
+        );
+      }
+    }
+    await evaluate(
+      "g.goToTitle();g.titlePointer.x=-1;g.titlePointer.y=-1;g.render();",
+    );
+    await snapshot("main-menu-small");
+    win.setContentSize(1600, 900);
+    await evaluate("g.resize();");
     const result = await win.webContents.executeJavaScript(`(async () => {
       const {game:g}=await import('./game.js');
       g.loop=()=>{};
@@ -48,23 +172,23 @@ app.whenReady().then(async () => {
     })()`);
     fs.mkdirSync(outputDirectory, { recursive: true });
     const screenshot = path.join(outputDirectory, "selection.png");
-    fs.writeFileSync(screenshot, (await win.webContents.capturePage()).toPNG());
+    await snapshot("selection");
     await win.webContents.executeJavaScript(
       `import('./game.js').then(({game:g})=>{g.game.mode='pvp';g.game.state='controls';g.render();})`,
     );
-    fs.writeFileSync(
-      path.join(outputDirectory, "controls.png"),
-      (await win.webContents.capturePage()).toPNG(),
-    );
+    await snapshot("controls");
     await win.webContents.executeJavaScript(
       `import('./game.js').then(({game:g})=>{g.startMatch();g.game.state='fighting';g.render();})`,
     );
-    fs.writeFileSync(
-      path.join(outputDirectory, "fight.png"),
-      (await win.webContents.capturePage()).toPNG(),
-    );
+    await snapshot("fight");
     if (errors.length) throw Error(errors.join("\n"));
-    console.log(JSON.stringify({ ...result, screenshot }));
+    console.log(
+      JSON.stringify({
+        ...result,
+        menuChecks: "Enter, hover, press, all modes at three window sizes",
+        screenshot,
+      }),
+    );
     app.exit(0);
   } catch (error) {
     console.error(error);

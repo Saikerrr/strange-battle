@@ -257,3 +257,25 @@ test("holding Enter cannot skip menus and losing focus releases controls", () =>
   assert.equal(g.keys.KeyD, undefined);
   assert.equal(g.game.state, "paused");
 });
+
+test("Enter does nothing on the title screen; three buttons still choose their modes", () => {
+  g.goToTitle();
+  g.game.mode = "practice";
+  for (const listener of listeners.get("keydown"))
+    listener({ code: "Enter", repeat: false, preventDefault() {} });
+  assert.equal(g.game.state, "title");
+  assert.equal(g.game.mode, "practice");
+  for (const mode of ["pvp", "pve", "practice"]) {
+    g.goToTitle();
+    g.render();
+    assert.deepEqual(Object.keys(g.buttons).sort(), [
+      "play_practice",
+      "play_pve",
+      "play_pvp",
+    ]);
+    const b = g.buttons["play_" + mode];
+    g.handleClick(b.x + b.w / 2, b.y + b.h / 2);
+    assert.equal(g.game.mode, mode);
+    assert.equal(g.game.state, "select");
+  }
+});

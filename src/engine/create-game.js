@@ -6,6 +6,7 @@ import * as state from "./state.js";
 import { applySelections } from "../characters/roster.js";
 import { register as registerSelection } from "../ui/selection.js";
 import { register as registerControls } from "../ui/controls.js";
+import { register as registerTitleMenu } from "../ui/title-menu.js";
 import { startRound, endRound, updateGame } from "../systems/lifecycle.js";
 import { initialize } from "./initialize.js";
 import { attachInput } from "./input.js";
@@ -33,7 +34,7 @@ import { register as registerFighter } from "../entities/Fighter.js";
 import { register as registerWorld } from "../rendering/world.js";
 import { register as registerDrawing } from "../rendering/fighter.js";
 import { register as registerObjects } from "../rendering/objects.js";
-export function createGame({ bindInput = true } = {}) {
+export function createGame({ bindInput = true, titleImages = null } = {}) {
   const g = {
     ...config,
     ...colors,
@@ -138,7 +139,7 @@ export function createGame({ bindInput = true } = {}) {
   g.drawHUD = g.drawHUD_base;
   g.drawMessage = g.drawMessage_base;
   g.button = g.button_base;
-  g.drawTitleScreen = g.drawTitleScreen_arena;
+
   g.drawSelectScreen = g.drawSelectScreen_afghanistan;
 
   g.drawCharCard = g.drawCharCard_china;
@@ -207,12 +208,16 @@ export function createGame({ bindInput = true } = {}) {
     effects.initCrowd(g.ARENA_LEFT, g.ARENA_RIGHT, g.GROUND_Y);
   registerSelection(g);
   registerControls(g);
+  registerTitleMenu(g, titleImages);
   g.applySelections = () => applySelections(g);
   g.startRound = () => startRound(g);
   g.endRound = (winner) => endRound(g, winner);
   g.updateGame = (dt) => updateGame(g, dt);
   initialize(g);
-  if (bindInput) attachInput(g);
+  if (bindInput) {
+    attachInput(g);
+    g.attachTitlePointer();
+  }
   g.initCrowd();
   return g;
 }

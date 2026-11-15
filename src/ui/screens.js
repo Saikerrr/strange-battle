@@ -23,61 +23,6 @@ export function register(sbContext) {
     sbContext.buttons[id] = { x, y, w, h };
   };
 
-  sbContext.drawTitleScreen_base = function () {
-    sbContext.ctx.fillStyle = "rgba(0,0,0,0.92)";
-    sbContext.ctx.fillRect(0, 0, sbContext.W, sbContext.H);
-    sbContext.ctx.save();
-    sbContext.ctx.translate(sbContext.W / 2, 200);
-    sbContext.ctx.font = "bold 120px Impact, Arial Black, sans-serif";
-    sbContext.ctx.textAlign = "center";
-    sbContext.ctx.textBaseline = "middle";
-    sbContext.ctx.strokeStyle = "#000";
-    sbContext.ctx.lineWidth = 14;
-    sbContext.ctx.strokeText("FIGHTERS", 0, 0);
-    const g = sbContext.ctx.createLinearGradient(-500, -60, 500, 60);
-    g.addColorStop(0, "#0057b7");
-    g.addColorStop(0.5, "#ffffff");
-    g.addColorStop(1, "#d52b1e");
-    sbContext.ctx.fillStyle = g;
-    sbContext.ctx.fillText("FIGHTERS", 0, 0);
-    sbContext.ctx.restore();
-
-    sbContext.ctx.font = "bold 26px Arial";
-    sbContext.ctx.fillStyle = "#aaa";
-    sbContext.ctx.textAlign = "center";
-    sbContext.ctx.fillText("МЕЖДУНАРОДНЫЙ ТУРНИР", sbContext.W / 2, 320);
-
-    sbContext.buttons.length = 0;
-    sbContext.button(
-      sbContext.W / 2 - 200,
-      400,
-      400,
-      80,
-      "play_pvp",
-      "▶ PVP (2 ИГРОКА)",
-      "#ffd700",
-      "rgba(0,0,0,0.5)",
-    );
-    sbContext.button(
-      sbContext.W / 2 - 200,
-      500,
-      400,
-      80,
-      "play_pve",
-      "▶ PVE (ПРОТИВ ИИ)",
-      "#55ff88",
-      "rgba(0,50,0,0.5)",
-    );
-
-    sbContext.ctx.font = "15px Arial";
-    sbContext.ctx.fillStyle = "#666";
-    sbContext.ctx.fillText(
-      "ENTER — PVP · клик по кнопке для выбора",
-      sbContext.W / 2,
-      sbContext.H - 120,
-    );
-  };
-
   sbContext.drawCharCard_base = function (x, y, w, h, charId, selected, btnId) {
     const isUA = charId === "ukraine";
     const isAM = charId === "america";
@@ -149,20 +94,6 @@ export function register(sbContext) {
     const b = sbContext.buttons[id];
     if (!b) return false;
     return sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h;
-  };
-
-  sbContext.drawTitleScreen_arena = function () {
-    sbContext.drawTitleScreen_base();
-    sbContext.button(
-      sbContext.W / 2 - 200,
-      600,
-      400,
-      80,
-      "play_practice",
-      "🎯 ПОЛИГОН",
-      "#55ddff",
-      "rgba(0,35,55,.65)",
-    );
   };
 
   sbContext.sbDescription_interface = function (id) {
