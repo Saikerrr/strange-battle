@@ -1,6 +1,13 @@
 // Status effects apply to the target, regardless of the target's country.
 export function updateStatusEffects(g, fighter, dt) {
+  fighter.burgerEatTimer = Math.max(0, (fighter.burgerEatTimer || 0) - dt);
   if (fighter.trainingDummy || fighter.hp <= 0) return;
+  if (fighter.blastPushTimer > 0) {
+    const elapsed = Math.min(dt, fighter.blastPushTimer);
+    fighter.x += fighter.blastPushVelocity * elapsed;
+    fighter.blastPushTimer = Math.max(0, fighter.blastPushTimer - dt);
+    fighter.clampX();
+  }
   if (fighter.burnTimer > 0) {
     fighter.burnTimer = Math.max(0, fighter.burnTimer - dt);
     fighter.burnInterval -= dt;

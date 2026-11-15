@@ -27,6 +27,21 @@ app.whenReady().then(async () => {
   try {
     await win.loadFile(path.join(__dirname, "..", "index.html"));
     fs.mkdirSync(outputDirectory, { recursive: true });
+    // Verify complete designs after the SVG-to-cloth rendering pipeline.
+    await win.webContents.executeJavaScript(`(async()=>{
+      const {loadTitleImages}=await import('./src/ui/title-menu.js');
+      const {drawClothFlag}=await import('./src/ui/cloth-flags.js');
+      const images=await loadTitleImages();
+      const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;
+      const c=canvas.getContext('2d');
+      const pixel=(x,y)=>Array.from(c.getImageData(x,y,1,1).data);
+      drawClothFlag(c,images,'russia',10,10,64,48);
+      const white=pixel(25,17),blue=pixel(25,34),red=pixel(25,51);
+      if(!(white[0]>150&&white[1]>150&&white[2]>150&&blue[2]>blue[0]*2&&red[0]>red[2]*2))throw Error('Cloth flag lost Russia stripes: '+JSON.stringify({white,blue,red}));
+      c.clearRect(0,0,100,100);drawClothFlag(c,images,'japan',10,10,64,48);
+      const disc=pixel(42,34),field=pixel(20,34);
+      if(!(disc[0]>disc[1]*2&&field[0]>150&&field[1]>150))throw Error('Cloth flag lost Japan disc: '+JSON.stringify({disc,field}));
+    })()`);
     const evaluate = (code) =>
       win.webContents.executeJavaScript(
         `import('./game.js').then(async ({game:g})=>{const deadline=Date.now()+3000;while(g.sceneTransition?.progress<1){g.render();if(Date.now()>deadline)throw Error('Transition did not finish: '+g.sceneTransition.progress);await new Promise(r=>setTimeout(r,20));}${code}})`,
@@ -226,6 +241,39 @@ app.whenReady().then(async () => {
     await snapshot("practice-selection");
     await evaluate("g.startMatch();g.game.state='fighting';g.render();");
     await snapshot("practice");
+    for (const country of [
+      "afghanistan",
+      "china",
+      "russia",
+      "america",
+      "japan",
+    ]) {
+      await evaluate(
+        `g.game.mode='pvp';g.selections.p1='${country}';g.selections.p2='${country}';g.startMatch();g.game.state='fighting';g.keys={};g.p1.x=650;g.p2.x=950;g.p1.y=g.p2.y=g.GROUND_Y;g.p1.state=g.p2.state='idle';g.triggerUlt(g.p2,g.p1);g.p1.noodleMode=true;g.p1.noodleCharges=5;g.camera.x=800;g.camera.y=400;g.camera.zoom=1;g.screenFlash=0;g.screenShake.timer=0;g.particles.length=0;g.explosionRings.length=0;g.render();`,
+      );
+      await snapshot("country-" + country);
+      if (country === "afghanistan")
+        await evaluate(
+          "g.p1.afghanRifleActive=1;g.p2.afghanMinigunActive=1;g.afghanPlanes.push({x:800,y:340});g.afghanC4s.push({x:800,y:g.GROUND_Y,landed:true,owner:g.p1});",
+        );
+      if (country === "america")
+        await evaluate(
+          "g.p1.castBurger();g.p2.castBurger();g.p1.castEagle();const e=g.eagles[0];e.x=800;e.y=450;e.timer=.2;",
+        );
+      if (country === "russia")
+        await evaluate(
+          "g.p1.startAttack('uppercut');g.p1.attack.timer=.25;g.sbSpawnRocket(g.p2,g.p1);g.ultRockets[0].x=800;g.ultRockets[0].y=420;",
+        );
+      if (country === "china")
+        await evaluate(
+          "g.p1.cnFirework(g.p2);g.cnFireworks[0].x=800;g.cnFireworks[0].y=430;g.p2.dragonRush=1;",
+        );
+      await snapshot("skills-" + country);
+    }
+    await evaluate(
+      "g.selections.p1=g.selections.p2='japan';g.startMatch();g.game.state='fighting';g.p1.x=650;g.p2.x=950;g.camera.x=800;g.p1.japanParryStance=1;g.p2.ultCharging=true;g.p2.ultChargeTimer=1;g.p2.ultChargeDuration=2;g.screenFlash=0;g.render();",
+    );
+    await snapshot("japan-poses");
     if (errors.length) throw Error(errors.join("\n"));
     console.log(
       JSON.stringify({

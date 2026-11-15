@@ -79,6 +79,40 @@ export function register(sbContext) {
   sbContext.drawArm_japan = function (sx, sy, ang, len, c) {
     const f = sbContext._jpCurrentFighter;
     const isJp = f && f.isJapan && !f.trainingDummy;
+    if (
+      isJp &&
+      (f.japanParryStance > 0 || f.japanParryPrep > 0 || f.ultCharging)
+    ) {
+      const charging = f.ultCharging;
+      const progress = charging
+        ? Math.min(1, f.ultChargeTimer / f.ultChargeDuration)
+        : 0;
+      const hand = {
+        x: charging ? 32 - progress * 26 : 47,
+        y: sy + (charging ? 30 : sx < 0 ? -3 : 8),
+      };
+      sbContext.drawLimb(
+        sx,
+        sy,
+        (sx + hand.x) / 2,
+        hand.y + 14,
+        13,
+        c.shirt,
+        c.shirtDark,
+      );
+      sbContext.drawLimb(
+        (sx + hand.x) / 2,
+        hand.y + 14,
+        hand.x,
+        hand.y,
+        11,
+        c.skin,
+        c.skinDark,
+      );
+      if (sx === 14)
+        sbContext.drawKatana(hand.x, hand.y, charging ? Math.PI : -1.35);
+      return;
+    }
     if (isJp && sx === 14) {
       const a = f.attack;
       if (a && a.type === "punch") {
@@ -108,7 +142,7 @@ export function register(sbContext) {
         ang = -0.3;
         len = 45;
       } else if (f.state === "idle" && !a && !f.ultCharging) {
-        ang = 0.25;
+        ang = 1.35;
         len = 46;
       }
     }
@@ -123,7 +157,11 @@ export function register(sbContext) {
     sbContext.drawArm_base(sx, sy, ang, len, c);
     if (isJp && sx === 14) {
       const end = sbContext.limbEnd(sx, sy, ang, len);
-      sbContext.drawKatana(end.x, end.y, ang);
+      sbContext.drawKatana(
+        end.x,
+        end.y,
+        f.state === "idle" && !f.attack ? -0.45 : ang,
+      );
     }
   };
 
@@ -135,10 +173,12 @@ export function register(sbContext) {
       bob = Math.abs(Math.sin(f.walkCycle || 0)) * 5 + 1;
     else if (f.state === "jump" || f.state === "dash_air") bob = -3;
     else if (f.ultCharging) bob = 40;
-    const hY = -142 + bob;
+    const hY = -142;
     sbContext.ctx.save();
     sbContext.ctx.translate(f.x, f.y);
-    sbContext.ctx.scale(f.facing, 1);
+    const head = f._renderHead || { x: 0, y: -142 + bob, scale: 1 };
+    sbContext.ctx.scale(f.facing * head.scale, head.scale);
+    sbContext.ctx.translate(head.x, head.y + 142);
     sbContext.ctx.fillStyle = "#1a1a1a";
     sbContext.ctx.beginPath();
     sbContext.ctx.arc(0, hY - 6, 24, Math.PI, Math.PI * 2);

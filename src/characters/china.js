@@ -1,3 +1,5 @@
+import { drawChineseDragon } from "../rendering/chinese-dragon.js";
+import { releaseDragonVictim, updateDragonRush } from "./dragon-rush.js";
 // Shared context keeps the current fighters and services visible without circular imports.
 export function register(sbContext) {
   sbContext.cnText_china = function (x, y, txt, color = "#fff") {
@@ -25,6 +27,11 @@ export function register(sbContext) {
     f.breathCd = 0;
     f.tailCd = 0;
     f.roarCd = 0;
+    f.dragonRush = 0;
+    f.dragonVictim = null;
+    f.dragonCaptured = false;
+    f.dragonGrabTime = 0;
+    f.dragonTarget = null;
     f._cnZHeld = false;
     f._cnXHeld = false;
     f._cnCHeld = false;
@@ -37,6 +44,7 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_reset_china = function () {
+    releaseDragonVictim(this, true);
     sbContext.fighter_reset_arena.call(this);
     this._cnInit = false;
     sbContext.cnInit(this);
@@ -44,7 +52,14 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_update_china = function (dt, opponent, allowInput) {
-    sbContext.fighter_update_interface.call(this, dt, opponent, allowInput);
+    const flying = this.isChina && this.dragonRush > 0;
+    const flightY = this.y;
+    sbContext.fighter_update_interface.call(
+      this,
+      dt,
+      opponent,
+      allowInput && !flying,
+    );
     if (!this.isChina || this.trainingDummy) return;
     sbContext.cnInit(this);
 
@@ -54,6 +69,10 @@ export function register(sbContext) {
     this.breathCd = Math.max(0, this.breathCd - dt);
     this.tailCd = Math.max(0, this.tailCd - dt);
     this.roarCd = Math.max(0, this.roarCd - dt);
+    if (flying) {
+      this.y = flightY;
+      if (updateDragonRush(sbContext, this, dt, allowInput)) return;
+    }
 
     // Нельзя кастовать в ульте-зарядке / стане / переноске
     if (
@@ -87,7 +106,7 @@ export function register(sbContext) {
 
       if (cDown && !this._cnCHeld && this.roarCd <= 0) {
         this.cnRoar(opponent);
-        this.roarCd = 5;
+        this.roarCd = 10;
         this._cnCHeld = true;
       }
       if (!cDown) this._cnCHeld = false;
@@ -170,7 +189,7 @@ export function register(sbContext) {
       duration: 0.6,
       owner: this,
       target,
-      radius: 130,
+      radius: 180,
       damage: 10,
     });
     sbContext.cnText(this.x, this.y - 170, "🎆 ФЕЙЕРВЕРК", "#ffcc00");
@@ -229,20 +248,14 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_cnRoar_china = function (target) {
-    sbContext.cnRoars.push({
-      x: this.x,
-      y: this.y - 80,
-      radius: 250,
-      life: 0.6,
-      maxLife: 0.6,
-      owner: this,
-    });
-    sbContext.playSound(80, 0.5, "sawtooth", 0.2);
-    sbContext.doShake(20, 0.3);
-    if (target && target.hp > 0 && Math.hypot(target.x - this.x, 0) < 250) {
-      target.takeDamage(8, this.facing);
-      target.slowTimer = 2;
-    }
+    this.dragonRush = 1.5;
+    this.dragonTarget = target;
+    this.dragonVictim = null;
+    this.dragonCaptured = false;
+    this.dragonGrabTime = 0;
+    this.attack = null;
+    this.vx = 0;
+    this.vy = 0;
   };
 
   sbContext.triggerUlt_china = function (f, opp) {
@@ -490,6 +503,21 @@ export function register(sbContext) {
     for (const f of sbContext.cnFireworks) {
       sbContext.ctx.save();
       sbContext.ctx.translate(f.x, f.y);
+      sbContext.ctx.scale(1.6, 1.6);
+      sbContext.ctx.fillStyle = "#c93437";
+      sbContext.ctx.strokeStyle = "#f2c457";
+      sbContext.ctx.lineWidth = 2;
+      sbContext.ctx.beginPath();
+      sbContext.ctx.roundRect(-6, -19, 12, 28, 3);
+      sbContext.ctx.fill();
+      sbContext.ctx.stroke();
+      sbContext.ctx.fillStyle = "#e9b545";
+      sbContext.ctx.beginPath();
+      sbContext.ctx.moveTo(-9, -19);
+      sbContext.ctx.lineTo(0, -30);
+      sbContext.ctx.lineTo(9, -19);
+      sbContext.ctx.closePath();
+      sbContext.ctx.fill();
       sbContext.ctx.globalAlpha = 0.4;
       sbContext.ctx.fillStyle = "#ff6600";
       for (let i = 1; i <= 3; i++) {
@@ -661,6 +689,10 @@ export function register(sbContext) {
   };
 
   sbContext.drawFighter_china = function (f) {
+    if (f.isChina && !f.trainingDummy && f.ultTimer > 0) {
+      drawChineseDragon(sbContext.ctx, f);
+      return;
+    }
     sbContext.drawFighter_interface(f);
     if (!f.isChina) return;
 
@@ -687,105 +719,31 @@ export function register(sbContext) {
       sbContext.ctx.font = "bold 14px Arial";
       sbContext.ctx.textAlign = "center";
       sbContext.ctx.textBaseline = "middle";
-      sbContext.ctx.fillText("D", 0, 4);
+      sbContext.ctx.strokeStyle = "#ffe59b";
+      sbContext.ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++) {
+        sbContext.ctx.beginPath();
+        sbContext.ctx.moveTo(-9 + i * 4, -11);
+        sbContext.ctx.bezierCurveTo(
+          -14 + i * 4,
+          -20,
+          0 + i * 3,
+          -21,
+          -5 + i * 4,
+          -29,
+        );
+        sbContext.ctx.stroke();
+      }
+      sbContext.ctx.strokeStyle = "#795032";
+      sbContext.ctx.beginPath();
+      sbContext.ctx.moveTo(3, -13);
+      sbContext.ctx.lineTo(22, -36);
+      sbContext.ctx.moveTo(8, -12);
+      sbContext.ctx.lineTo(27, -34);
+      sbContext.ctx.stroke();
       sbContext.ctx.fillStyle = "#ffcc00";
       sbContext.ctx.font = "bold 12px Arial";
       sbContext.ctx.fillText("x" + f.noodleCharges, 22, -12);
-      sbContext.ctx.restore();
-    }
-
-    // Дракон
-    if (f.ultTimer > 0) {
-      const t = performance.now();
-      sbContext.ctx.save();
-      sbContext.ctx.translate(f.x, f.y);
-      sbContext.ctx.scale(f.facing, 1);
-
-      // Хвост
-      const tail = Math.sin(t * 0.008) * 8;
-      sbContext.ctx.strokeStyle = "#ffcc00";
-      sbContext.ctx.lineWidth = 12;
-      sbContext.ctx.lineCap = "round";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(0, -60);
-      sbContext.ctx.quadraticCurveTo(-70, -30 + tail, -110, -80 + tail);
-      sbContext.ctx.stroke();
-      sbContext.ctx.strokeStyle = "#aa8800";
-      sbContext.ctx.lineWidth = 3;
-      sbContext.ctx.stroke();
-      sbContext.ctx.fillStyle = "#ff6600";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(-110, -80 + tail, 10, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-
-      // Дальнее крыло
-      const wp = Math.sin(t * 0.01);
-      sbContext.ctx.save();
-      sbContext.ctx.translate(-20, -110);
-      sbContext.ctx.rotate(-0.7 + wp * 0.3);
-      sbContext.ctx.fillStyle = "rgba(255,180,0,0.6)";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(0, 0);
-      sbContext.ctx.quadraticCurveTo(-60, -40, -90, 0);
-      sbContext.ctx.quadraticCurveTo(-70, 25, -40, 20);
-      sbContext.ctx.closePath();
-      sbContext.ctx.fill();
-      sbContext.ctx.strokeStyle = "#aa6600";
-      sbContext.ctx.lineWidth = 2;
-      sbContext.ctx.stroke();
-      sbContext.ctx.restore();
-
-      // Ближнее крыло
-      sbContext.ctx.save();
-      sbContext.ctx.translate(-20, -110);
-      sbContext.ctx.rotate(-0.5 + wp * 0.3);
-      sbContext.ctx.fillStyle = "rgba(255,215,0,0.7)";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(0, 0);
-      sbContext.ctx.quadraticCurveTo(-50, -30, -80, -10);
-      sbContext.ctx.quadraticCurveTo(-70, 20, -50, 30);
-      sbContext.ctx.closePath();
-      sbContext.ctx.fill();
-      sbContext.ctx.strokeStyle = "#aa6600";
-      sbContext.ctx.lineWidth = 2;
-      sbContext.ctx.stroke();
-      for (let i = 1; i <= 3; i++) {
-        sbContext.ctx.beginPath();
-        sbContext.ctx.moveTo(0, 0);
-        sbContext.ctx.lineTo(-60 + i * 15, -20 + i * 12);
-        sbContext.ctx.stroke();
-      }
-      sbContext.ctx.restore();
-
-      // Чешуя
-      sbContext.ctx.strokeStyle = "rgba(255,215,0,0.5)";
-      sbContext.ctx.lineWidth = 1;
-      for (let y = -140; y < -80; y += 15) {
-        for (let x = -15; x < 15; x += 10) {
-          sbContext.ctx.beginPath();
-          sbContext.ctx.arc(x, y, 4, 0, Math.PI);
-          sbContext.ctx.stroke();
-        }
-      }
-      sbContext.ctx.restore();
-
-      // Золотая аура
-      sbContext.ctx.save();
-      sbContext.ctx.globalAlpha = 0.3 + Math.sin(t * 0.01) * 0.15;
-      const ag = sbContext.ctx.createRadialGradient(
-        f.x,
-        f.y - 100,
-        20,
-        f.x,
-        f.y - 100,
-        180,
-      );
-      ag.addColorStop(0, "rgba(255,215,0,0.5)");
-      ag.addColorStop(1, "rgba(255,180,0,0)");
-      sbContext.ctx.fillStyle = ag;
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(f.x, f.y - 100, 180, 0, Math.PI * 2);
-      sbContext.ctx.fill();
       sbContext.ctx.restore();
     }
   };
@@ -801,14 +759,14 @@ export function register(sbContext) {
             ],
             [
               "X · ФЕЙЕРВЕРК",
-              "Запускает фейерверк по дуге. Взрыв 10 урона в радиусе 130. Кд 5 сек.",
+              "Запускает фейерверк по дуге. Взрыв 10 урона в радиусе 180. Кд 5 сек.",
             ],
             [
               "C · БУМАЖНЫЙ ФОНАРЬ",
               "Ставит фонарь на 4 сек. Стреляет огоньками (3 урона) каждые 0.6 сек по ближайшему врагу. Кд 10 сек.",
             ],
           ],
-          ult: "На 10 сек превращается в крылатого дракона: +20% HP, крылья, чешуя. Z — Дыхание (15 + поджог), X — Хвост (12 + оглушение), C — Рёв (8 + замедление).",
+          ult: "На 10 сек превращается в китайского дракона: +20% HP. Z — Дыхание (15 + поджог), X — Хвост (12 + оглушение), C — управляемый полёт: захват в пасть (10), взрыв (15), сброс врага. КД C — 10с, как у фонаря. Направление полёта — клавиши движения.",
         };
       }
       return prev(id);

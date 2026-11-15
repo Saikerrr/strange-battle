@@ -51,7 +51,11 @@ export function register(g) {
     ctx.fillStyle = "#1b202a";
     ctx.fillRect(x + 13, y + 28, 100, 137);
     // Render the same fighter's upper body, with its current expression and form.
-    ctx.translate(x + 63, y + (f.isAfghanistan ? 230 : 200));
+    const dragon = f.isChina && f.ultTimer > 0;
+    ctx.translate(
+      x + 63 - (dragon ? f.facing * 70 : 0),
+      y + (dragon ? 240 : f.isAfghanistan ? 230 : 200),
+    );
     const portraitScale =
       f.ultTimer > 0 &&
       !f.isAmerica &&
@@ -140,7 +144,9 @@ export function register(g) {
             ? "shield"
             : f.isJapan
               ? "ghost"
-              : null;
+              : f.isChina || f.isAfghanistan
+                ? "armor"
+                : null;
       if (passive) {
         card(barX + 302, y + 84, 48, passive, null, 0);
         ctx.fillStyle = "#a98aaf";

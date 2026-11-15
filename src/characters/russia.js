@@ -91,7 +91,8 @@ export function register(sbContext) {
       ) {
         r.hit = true;
         r.target.takeDamage(15, r.owner.facing);
-        sbContext.spawnExplosion(r.x, r.y);
+        sbContext.spawnBigExplosion(r.x, r.y);
+        sbContext.doShake(22, 0.4);
         sbContext.spawnHitSparks(r.x, r.y, "#ffb347");
         r.life = 0;
       }
@@ -103,7 +104,8 @@ export function register(sbContext) {
     for (const r of sbContext.ultRockets) {
       sbContext.ctx.save();
       sbContext.ctx.translate(r.x, r.y);
-      sbContext.ctx.rotate(Math.PI / 2 + Math.atan2(r.vy, r.vx) * 0.18);
+      sbContext.ctx.scale(1.8, 1.8);
+      sbContext.ctx.rotate(Math.atan2(-r.vx, Math.max(260, r.vy)) + Math.PI);
       const g = sbContext.ctx.createRadialGradient(0, 18, 2, 0, 18, 36);
       g.addColorStop(0, "#fff4a0");
       g.addColorStop(1, "rgba(255,80,0,0)");
@@ -122,6 +124,25 @@ export function register(sbContext) {
       sbContext.ctx.fill();
       sbContext.ctx.fillStyle = "#d33";
       sbContext.ctx.fillRect(-11, 0, 22, 10);
+      sbContext.ctx.fillStyle = "#606b67";
+      sbContext.ctx.beginPath();
+      sbContext.ctx.moveTo(-8, 10);
+      sbContext.ctx.lineTo(-22, 29);
+      sbContext.ctx.lineTo(-5, 24);
+      sbContext.ctx.closePath();
+      sbContext.ctx.fill();
+      sbContext.ctx.beginPath();
+      sbContext.ctx.moveTo(8, 10);
+      sbContext.ctx.lineTo(22, 29);
+      sbContext.ctx.lineTo(5, 24);
+      sbContext.ctx.closePath();
+      sbContext.ctx.fill();
+      sbContext.ctx.strokeStyle = "#e3dcc3";
+      sbContext.ctx.lineWidth = 2;
+      sbContext.ctx.beginPath();
+      sbContext.ctx.moveTo(-4, -15);
+      sbContext.ctx.lineTo(-4, 12);
+      sbContext.ctx.stroke();
       sbContext.ctx.fillStyle = "#ffb52e";
       sbContext.ctx.beginPath();
       sbContext.ctx.moveTo(-7, 25);

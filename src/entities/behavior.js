@@ -2,7 +2,9 @@
 export function register(sbContext) {
   sbContext.fighter_reset_base = function () {
     this.maxHp = 100;
-    this.blastPushTimer=0;this.blastPushVelocity=0;this._afgDetonateHeld=false;
+    this.blastPushTimer = 0;
+    this.blastPushVelocity = 0;
+    this._afgDetonateHeld = false;
     this.hp = 100;
     this.vx = 0;
     this.vy = 0;
@@ -45,6 +47,7 @@ export function register(sbContext) {
     this.dropCooldown = 0;
     this.animTime = 0;
     this.walkCycle = 0;
+    this.burgerEatTimer = 0;
     this.breathing = 0;
     this.bleedTimer = 0;
     this.bleedTickTimer = 0;

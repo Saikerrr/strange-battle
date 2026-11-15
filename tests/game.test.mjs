@@ -434,3 +434,93 @@ test("Afghan rifle fires exactly five rounds of five damage and C4 has a five se
   assert.equal(g.afghanC4s.length, 1);
   assert.equal(g.p1.afghanC4Cd, 5);
 });
+
+test("Russia balalaika has a half second windup, fifteen damage and unchanged cooldown", () => {
+  begin("russia", "america");
+  g.p1.x = 600;
+  g.p2.x = 685;
+  const hp = g.p2.hp;
+  g.keys.KeyC = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyC = false;
+  assert.equal(g.p1.skillCd.uppercut, 6);
+  for (let i = 0; i < 47; i++) g.p1.update(0.01, g.p2, true);
+  assert.equal(g.p2.hp, hp);
+  for (let i = 0; i < 5; i++) g.p1.update(0.01, g.p2, true);
+  assert.equal(g.p2.hp, hp - 15);
+  assert.equal(g.p2.onGround, true);
+});
+
+test("American shield rebounds on first impact and cannot hit repeatedly", () => {
+  begin("america", "russia");
+  g.triggerUlt(g.p1, g.p2);
+  g.p1.x = 600;
+  g.p2.x = 750;
+  const hp = g.p2.hp;
+  g.p1.castBurger();
+  const shield = g.shieldBoomerangs[0];
+  for (let i = 0; i < 30 && !shield.hit; i++) g.sbUpdateBoomerangs(0.01);
+  assert.equal(shield.hit, true);
+  assert.ok(shield.vx < 0);
+  assert.ok(shield.x < g.p2.x);
+  assert.equal(g.p2.hp, hp - 12);
+  for (let i = 0; i < 200; i++) g.sbUpdateBoomerangs(0.01);
+  assert.equal(g.shieldBoomerangs.length, 0);
+  assert.equal(g.p2.hp, hp - 12);
+  begin("america", "russia");
+  g.p1.castBurger();
+  assert.equal(g.p1.burgerEatTimer, 1.2);
+});
+
+test("dragon captures for ten, explodes for fifteen, releases and resets safely on either side", () => {
+  for (const side of [1, 2]) {
+    begin(side === 1 ? "china" : "america", side === 2 ? "china" : "america");
+    const f = side === 1 ? g.p1 : g.p2,
+      enemy = side === 1 ? g.p2 : g.p1;
+    f.x = 600;
+    f.facing = 1;
+    enemy.x = 730;
+    g.triggerUlt(f, enemy);
+    const hp = enemy.hp;
+    g.keys[side === 1 ? "KeyC" : "Numpad3"] = true;
+    f.update(0.01, enemy, true);
+    g.keys[side === 1 ? "KeyC" : "Numpad3"] = false;
+    assert.equal(f.roarCd, 10);
+    f.update(0.01, enemy, true);
+    assert.equal(enemy.hp, hp - 10);
+    assert.equal(enemy.carried, true);
+    for (let i = 0; i < 60; i++) f.update(0.01, enemy, true);
+    assert.equal(enemy.hp, hp - 25);
+    assert.equal(enemy.carried, false);
+    assert.equal(f.dragonRush, 0);
+    assert.ok(enemy.vy >= 200);
+    f.dragonVictim = enemy;
+    enemy.carried = true;
+    f.dragonRush = 1;
+    begin("russia", "japan");
+    assert.equal(enemy.carried, false);
+    assert.equal(enemy.hitstun, 0);
+  }
+});
+
+test("dragon flight is steerable and releases its victim when interrupted", () => {
+  begin("china", "america");
+  g.triggerUlt(g.p1, g.p2);
+  g.p1.x = 600;
+  g.p2.x = 730;
+  g.p1.facing = 1;
+  g.p1.cnRoar(g.p2);
+  g.p1.update(0.01, g.p2, true);
+  assert.equal(g.p2.carried, true);
+  g.keys.KeyA = true;
+  g.keys.KeyW = true;
+  const x = g.p1.x,
+    y = g.p1.y;
+  g.p1.update(0.05, g.p2, true);
+  assert.ok(g.p1.x < x);
+  assert.ok(g.p1.y < y);
+  g.p1.hitstun = 0.5;
+  g.p1.update(0.01, g.p2, true);
+  assert.equal(g.p2.carried, false);
+  assert.equal(g.p1.dragonRush, 0);
+});

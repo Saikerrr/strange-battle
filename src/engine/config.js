@@ -53,14 +53,14 @@ export const ATTACKS = {
     knockback: 280,
   },
   uppercut: {
-    startup: 0.12,
+    startup: 0.5,
     active: 0.1,
     recovery: 0.3,
-    damage: 14,
+    damage: 15,
     range: 55,
     hitY: -120,
     hitR: 38,
-    launch: true,
+    launch: false,
     knockback: 150,
   },
   chargedPunch: {

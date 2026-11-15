@@ -11,13 +11,17 @@ const codes = {
 export function drawClothFlag(ctx, images, id, x, y, w = 48, h = 36) {
   const image = images?.["flag_" + codes[id]];
   if (!image) return false;
-  const width = image.naturalWidth,
-    height = image.naturalHeight,
+  const width = image.naturalWidth || image.width,
+    height = image.naturalHeight || image.height,
     strips = 32;
   ctx.save();
   ctx.shadowColor = "#000b";
   ctx.shadowBlur = 3;
   ctx.shadowOffsetY = 2;
+  // One shadow for the whole flag; per-strip shadows darken their neighbours.
+  ctx.drawImage(image, x, y, w, h);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
   for (let i = 0; i < strips; i++) {
     const t = i / strips,
       fold =

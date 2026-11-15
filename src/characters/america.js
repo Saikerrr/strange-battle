@@ -23,6 +23,7 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_castBurger_base = function () {
+    this.burgerEatTimer = 1.2;
     this.healTicks = 3;
     this.healTimer = 0.7;
     sbContext.particles.push({
@@ -46,7 +47,7 @@ export function register(sbContext) {
       b.age += dt;
       b.life -= dt;
       const target = b.target;
-      const returning = b.age > 0.55;
+      const returning = b.hit || b.age > 0.55;
       if (!returning && target && target.hp > 0) {
         const dy = target.y - 85 - b.y;
         b.vy += (Math.max(-220, Math.min(220, dy * 1.8)) - b.vy) * dt * 3;
@@ -67,9 +68,15 @@ export function register(sbContext) {
       ) {
         target.takeDamage(12, b.owner.facing);
         b.hit = true;
+        // Rebound at contact immediately; do not carry on through the body.
+        b.vx = -b.owner.facing * 850;
+        b.vy = 0;
         sbContext.spawnHitSparks(b.x, b.y, "#65baff");
       }
-      if (b.life <= 0 || Math.hypot(b.owner.x - b.x, b.owner.y - 85 - b.y) < 38)
+      if (
+        b.life <= 0 ||
+        (returning && Math.hypot(b.owner.x - b.x, b.owner.y - 85 - b.y) < 38)
+      )
         sbContext.shieldBoomerangs.splice(i, 1);
     }
   };
@@ -81,7 +88,7 @@ export function register(sbContext) {
       sbContext.ctx.rotate(b.age * 15);
       sbContext.ctx.shadowColor = "#55aaff";
       sbContext.ctx.shadowBlur = 18;
-      sbContext.ctx.fillStyle = "#b9d9f5";
+      sbContext.ctx.fillStyle = "#bd2838";
       sbContext.ctx.beginPath();
       sbContext.ctx.arc(0, 0, 23, 0, Math.PI * 2);
       sbContext.ctx.fill();
@@ -94,6 +101,16 @@ export function register(sbContext) {
       sbContext.ctx.beginPath();
       sbContext.ctx.arc(0, 0, 18, 0, Math.PI * 2);
       sbContext.ctx.stroke();
+      sbContext.ctx.fillStyle = "#fff";
+      sbContext.ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5,
+          r = i % 2 ? 4.5 : 10;
+        if (i === 0) sbContext.ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else sbContext.ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      sbContext.ctx.closePath();
+      sbContext.ctx.fill();
       sbContext.ctx.restore();
     }
   };

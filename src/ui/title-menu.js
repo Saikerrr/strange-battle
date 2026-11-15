@@ -21,11 +21,17 @@ export async function loadTitleImages() {
         new Promise((resolve, reject) => {
           const image = new Image();
           image.onload = () => {
-            if (
-              name === "background" ||
-              name.startsWith("selection") ||
-              name.startsWith("flag_")
-            ) {
+            if (name.startsWith("flag_")) {
+              // Rasterize the full SVG first: Chromium source rectangles for
+              // viewBox-only images do not reliably match naturalWidth/Height.
+              const flag = document.createElement("canvas");
+              flag.width = 640;
+              flag.height = 480;
+              flag.getContext("2d").drawImage(image, 0, 0, 640, 480);
+              resolve([name, flag]);
+              return;
+            }
+            if (name === "background" || name.startsWith("selection")) {
               resolve([name, image]);
               return;
             }

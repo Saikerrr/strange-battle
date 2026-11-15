@@ -1,3 +1,4 @@
+import { drawBalalaika, drawBurger } from "./country-props.js";
 export function register(sbContext) {
   sbContext.drawLimb_base = function (x1, y1, x2, y2, w, color, darkColor) {
     const dx = x2 - x1,
@@ -23,7 +24,7 @@ export function register(sbContext) {
     const t = f.animTime || 0;
     const isUlt = f.ultTimer > 0;
     const isZombie = isUlt && f.isUkraine;
-    const isCyborg = isUlt && !f.isUkraine && !f.isAmerica && !f.isChina;
+    const isCyborg = isUlt && f.charType === "russia";
     const isPatriot = isUlt && f.isAmerica;
     const isBlocked = f.blockedTimer > 0;
     const isCharging = f.ultCharging;
@@ -92,7 +93,7 @@ export function register(sbContext) {
       );
     sbContext.ctx.translate(f.x, f.y);
     const bodyScale = isUlt
-      ? f.isAmerica
+      ? f.isAmerica || f.isJapan
         ? 1
         : 1.7
       : isCharging
@@ -332,6 +333,34 @@ export function register(sbContext) {
       }
     }
 
+    if (f.isJapan && (f.japanParryStance > 0 || f.japanParryPrep > 0)) {
+      legL = 2.05;
+      legR = 0.95;
+      legLenL = 57;
+      legLenR = 57;
+      torsoLean = 0;
+      bob = 7;
+    }
+    if (f.isJapan && isCharging) {
+      bob = 22;
+      torsoLean = 0.16;
+      legL = 2.1;
+      legR = 1.0;
+      legLenL = 45;
+      legLenR = 45;
+    }
+    if (f.isChina && f.noodleMode && !isUlt) {
+      armR = 0.3;
+      armLenR = 44;
+    }
+    if (f.burgerEatTimer > 0) {
+      armR = -1.25 + Math.sin((1.2 - f.burgerEatTimer) * 8) * 0.16;
+      armLenR = 44;
+    }
+    if (f.charType === "russia" && !isUlt && f.attack?.type === "uppercut") {
+      armR = f.attack.timer < 0.5 ? -1.9 : 0.35;
+      armLenR = 53;
+    }
     const sy = -105 + bob,
       hy = -60 + bob;
 
@@ -486,6 +515,15 @@ export function register(sbContext) {
     sbContext.ctx.fillRect(headOffset - 7, -122 + bob, 14, 12);
 
     const hY = -142 + bob + (torsoLean ? -5 : 0);
+    if (f.isJapan)
+      f._renderHead = {
+        x: headOffset * Math.cos(torsoLean) - (hY - sy) * Math.sin(torsoLean),
+        y:
+          sy +
+          headOffset * Math.sin(torsoLean) +
+          (hY - sy) * Math.cos(torsoLean),
+        scale: bodyScale,
+      };
     sbContext.ctx.fillStyle = c.skin;
     sbContext.ctx.beginPath();
     sbContext.ctx.arc(headOffset, hY, 19, 0, Math.PI * 2);
@@ -649,6 +687,21 @@ export function register(sbContext) {
     }
 
     sbContext.drawArm(14, sy, armR, armLenR, c);
+    const propHand = sbContext.limbEnd(14, sy, armR, armLenR);
+    if (f.charType === "russia" && !isUlt && f.attack?.type === "uppercut")
+      drawBalalaika(
+        sbContext.ctx,
+        propHand.x,
+        propHand.y,
+        f.attack.timer < 0.5 ? -0.6 : 1.15,
+      );
+    if (f.isAmerica && f.burgerEatTimer > 0)
+      drawBurger(
+        sbContext.ctx,
+        propHand.x,
+        propHand.y,
+        (1.2 - f.burgerEatTimer) / 1.2,
+      );
 
     // Щит: на руке всегда виден в форме Капитана, при блоке выдвигается вперёд
     if (isPatriot) {

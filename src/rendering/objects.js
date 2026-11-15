@@ -1,3 +1,4 @@
+import { drawRaptor } from "./country-props.js";
 export function register(sbContext) {
   sbContext.drawLightningEffects_base = function () {
     for (const e of sbContext.lightningEffects) {
@@ -417,41 +418,6 @@ export function register(sbContext) {
   };
 
   sbContext.drawEagles_interface = function () {
-    for (const e of sbContext.eagles) {
-      sbContext.ctx.save();
-      sbContext.ctx.translate(e.x, e.y);
-      sbContext.ctx.scale((e.facing || 1) * (e.scale || 1), e.scale || 1);
-      if (e.state === "fly") sbContext.ctx.scale(1, -1);
-      const wing = Math.sin(e.timer * 20) * 20;
-      sbContext.ctx.fillStyle = "#4a3a20";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(-5, 0);
-      sbContext.ctx.lineTo(-40, -15 + wing);
-      sbContext.ctx.lineTo(-10, 10);
-      sbContext.ctx.closePath();
-      sbContext.ctx.fill();
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(5, 0);
-      sbContext.ctx.lineTo(40, -15 + wing);
-      sbContext.ctx.lineTo(10, 10);
-      sbContext.ctx.closePath();
-      sbContext.ctx.fill();
-      sbContext.ctx.fillStyle = "#fff";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(0, 0, 12, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-      sbContext.ctx.fillStyle = "#ffcc00";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(10, -4);
-      sbContext.ctx.lineTo(25, 0);
-      sbContext.ctx.lineTo(10, 4);
-      sbContext.ctx.closePath();
-      sbContext.ctx.fill();
-      sbContext.ctx.fillStyle = "#000";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(5, -2, 2, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-      sbContext.ctx.restore();
-    }
+    for (const e of sbContext.eagles) drawRaptor(sbContext.ctx, e);
   };
 }

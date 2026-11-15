@@ -13,7 +13,7 @@ const kits = {
   ],
   china: [
     ["noodles", "firework", "lantern"],
-    ["fire", "tail", "roar"],
+    ["fire", "tail", "dragon-bite"],
   ],
   japan: [
     ["katana", "parry", "smoke"],
@@ -56,7 +56,42 @@ export function drawSkillArt(ctx, x, y, size, kind) {
     ctx.fill();
     ctx.stroke();
   };
-  if (kind === "punch") {
+  if (kind === "dragon-bite") {
+    ctx.fillStyle = "#bf4241";
+    ctx.beginPath();
+    ctx.moveTo(10, 17);
+    ctx.lineTo(24, 7);
+    ctx.lineTo(45, 17);
+    ctx.lineTo(56, 22);
+    ctx.lineTo(54, 33);
+    ctx.lineTo(29, 30);
+    ctx.lineTo(22, 42);
+    ctx.lineTo(48, 42);
+    ctx.lineTo(53, 35);
+    ctx.lineTo(58, 45);
+    ctx.lineTo(43, 55);
+    ctx.lineTo(15, 48);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#e3b64f";
+    ctx.beginPath();
+    ctx.arc(37, 21, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#eee0b0";
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(31 + i * 8, 30);
+      ctx.lineTo(35 + i * 8, 36);
+      ctx.lineTo(38 + i * 8, 30);
+      ctx.fill();
+    }
+    line([
+      [20, 16],
+      [14, 3],
+      [25, 10],
+    ]);
+  } else if (kind === "punch") {
     ctx.fillStyle = "#bda184";
     ctx.beginPath();
     ctx.roundRect(14, 23, 37, 28, 8);

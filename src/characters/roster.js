@@ -25,7 +25,7 @@ export const ROSTER = [
     colors: RUSSIA_COLORS,
     accent: "#ff7777",
     flag: "drawFlagRU",
-    teaser: "Блокада · Медведь · Апперкот",
+    teaser: "Блокада · Медведь · Балалайка",
   },
   {
     id: "america",
