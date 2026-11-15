@@ -6,7 +6,21 @@ export async function loadTitleImages() {
       (name) =>
         new Promise((resolve, reject) => {
           const image = new Image();
-          image.onload = () => resolve([name, image]);
+          image.onload = () => {
+            if (name === "background") {
+              resolve([name, image]);
+              return;
+            }
+            const pixelImage = document.createElement("canvas");
+            pixelImage.width = name === "logo" ? 350 : 180;
+            pixelImage.height = Math.round(
+              (pixelImage.width * image.naturalHeight) / image.naturalWidth,
+            );
+            pixelImage
+              .getContext("2d")
+              .drawImage(image, 0, 0, pixelImage.width, pixelImage.height);
+            resolve([name, pixelImage]);
+          };
           image.onerror = () =>
             reject(new Error(`Cannot load menu image: ${name}`));
           image.src = new URL(
@@ -25,7 +39,7 @@ export function titleLayout(width, height) {
   const buttonWidth = 360,
     buttonHeight = 120;
   return {
-    logo: { x: (width - 650) / 2, y: 35, w: 650, h: 325 },
+    logo: { x: (width - 700) / 2, y: 70, w: 700, h: 700 / 3 },
     buttons: ["pvp", "pve", "practice"].map((mode, index) => {
       const x = (width - buttonWidth) / 2,
         y = height / 2 - 85 + index * 120;
@@ -48,6 +62,8 @@ export function titleLayout(width, height) {
 
 export function register(g, images) {
   const pointer = { x: -1, y: -1, down: false };
+  const drift = { x: 0, y: 0 };
+  const colors = { pvp: "#ff284b", pve: "#258dff", practice: "#c6c9e5" };
   const inside = (point, rect) =>
     point.x >= rect.x &&
     point.x <= rect.x + rect.w &&
@@ -66,14 +82,40 @@ export function register(g, images) {
     ctx.fillRect(0, 0, W, H);
     if (images) {
       // Cover the canvas without stretching or adding a dark overlay.
-      const scale = Math.max(
-        W / images.background.naturalWidth,
-        H / images.background.naturalHeight,
-      );
+      const scale =
+        1.035 *
+        Math.max(
+          W / images.background.naturalWidth,
+          H / images.background.naturalHeight,
+        );
       const bw = images.background.naturalWidth * scale,
         bh = images.background.naturalHeight * scale;
-      ctx.drawImage(images.background, (W - bw) / 2, (H - bh) / 2, bw, bh);
+      const targetX = pointer.x < 0 ? 0 : (pointer.x / W - 0.5) * -22;
+      const targetY = pointer.y < 0 ? 0 : (pointer.y / H - 0.5) * -14;
+      drift.x += (targetX - drift.x) * 0.12;
+      drift.y += (targetY - drift.y) * 0.12;
+      const bx = (W - bw) / 2 + drift.x,
+        by = (H - bh) / 2 + drift.y;
+      ctx.drawImage(images.background, bx, by, bw, bh);
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      for (const [nx, ny, rgb] of [
+        [0.24, 0.04, "75,115,255"],
+        [0.77, 0.045, "255,65,125"],
+      ]) {
+        const x = bx + bw * nx,
+          y = by + bh * ny;
+        const glow = ctx.createRadialGradient(x, y, 8, x, y, 230);
+        const strength =
+          0.16 + Math.sin(performance.now() / 1700 + nx * 5) * 0.018;
+        glow.addColorStop(0, `rgba(${rgb},${strength})`);
+        glow.addColorStop(1, `rgba(${rgb},0)`);
+        ctx.fillStyle = glow;
+        ctx.fillRect(x - 230, y - 230, 460, 460);
+      }
+      ctx.restore();
       const logo = layout.logo;
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(images.logo, logo.x, logo.y, logo.w, logo.h);
     }
     let hovered = false;
@@ -86,6 +128,8 @@ export function register(g, images) {
       ctx.save();
       ctx.translate(button.x + button.w / 2, button.y + button.h / 2);
       ctx.scale(scale, scale);
+      ctx.shadowColor = colors[button.mode];
+      ctx.shadowBlur = over ? 27 : 14;
       if (over) ctx.filter = "brightness(1.13)";
       ctx.drawImage(
         images[button.mode],

@@ -5,7 +5,7 @@
 | Файл проекта | Исходное имя |
 | --- | --- |
 | `background.png` | `Pasted image 20261115151034.png` |
-| `logo.png` | `Pasted image 20261115151547.png` |
+| `logo.png` | `Pasted image 20261115183252.png` (актуальная редакция) |
 | `pvp.png` | `Pasted image 20261115152350.png` |
 | `pve.png` | `Pasted image 20261115152404.png` |
 | `practice.png` | `Pasted image 20261115152517.png` |
