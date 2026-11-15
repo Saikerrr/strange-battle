@@ -191,6 +191,15 @@ export function register(sbContext) {
       diff.decisionMin + Math.random() * (diff.decisionMax - diff.decisionMin);
     ai.aiKeys = {};
     if (
+      sbContext.afghanC4s.some(
+        (c) =>
+          c.owner === ai &&
+          c.landed &&
+          Math.hypot(player.x - c.x, player.y - 70 - (c.y - 20)) < 150,
+      )
+    )
+      ai.aiKeys[ai === sbContext.p1 ? "KeyQ" : "Numpad7"] = true;
+    if (
       ai.hp <= 0 ||
       ai.state === "hit" ||
       ai.state === "ko" ||

@@ -377,3 +377,60 @@ test("combat HUD uses artwork instead of emoji and exposes actual ultimate passi
     drawnText.every((text) => !/[\p{Extended_Pictographic}]/u.test(text)),
   );
 });
+
+test("C4 persists, caps landed charges per owner and detonates only owned bombs", () => {
+  begin("afghanistan", "afghanistan");
+  g.p1.x = 600;
+  g.p2.x = 650;
+  const bomb = (owner, x) => ({
+    owner,
+    x,
+    y: g.GROUND_Y,
+    landed: true,
+    vx: 0,
+    vy: 0,
+    timer: 0,
+  });
+  const oldest = bomb(g.p1, 620),
+    foreign = bomb(g.p2, 620);
+  g.afghanC4s.push(
+    oldest,
+    ...Array.from({ length: 5 }, () => bomb(g.p1, 620)),
+    foreign,
+  );
+  g.updateAfghanProjectiles(10);
+  assert.equal(g.afghanC4s.length, 6);
+  assert.ok(!g.afghanC4s.includes(oldest));
+  const ownHP = g.p1.hp,
+    enemyHP = g.p2.hp;
+  g.keys.KeyQ = true;
+  g.updateAfghanProjectiles(0);
+  assert.deepEqual(g.afghanC4s, [foreign]);
+  assert.equal(g.p1.hp, ownHP);
+  assert.equal(g.p2.hp, enemyHP - 75);
+  assert.equal(g.p1.blastPushTimer, 0.3);
+  assert.equal(g.p2.blastPushVelocity, 600);
+  g.keys.Numpad7 = true;
+  g.updateAfghanProjectiles(0);
+  assert.equal(g.afghanC4s.length, 0);
+  assert.equal(g.p2.hp, enemyHP - 75);
+  begin("afghanistan", "russia");
+  assert.equal(g.p1.blastPushTimer, 0);
+});
+
+test("Afghan rifle fires exactly five rounds of five damage and C4 has a five second cooldown", () => {
+  begin("afghanistan", "russia");
+  g.keys.KeyX = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyX = false;
+  for (let i = 0; i < 30; i++) g.p1.update(0.05, g.p2, true);
+  assert.equal(g.afghanBullets.length, 5);
+  assert.ok(g.afghanBullets.every((b) => b.damage === 5));
+  assert.equal(g.p1.afghanRifleShots, 0);
+  g.keys.KeyZ = true;
+  g.p1.update(0.1, g.p2, true);
+  g.keys.KeyZ = false;
+  g.p1.update(0.01, g.p2, true);
+  assert.equal(g.afghanC4s.length, 1);
+  assert.equal(g.p1.afghanC4Cd, 5);
+});

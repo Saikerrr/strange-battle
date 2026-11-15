@@ -1,3 +1,4 @@
+import { drawAfghanBody, drawNetWrap } from "../rendering/afghan-body.js";
 // Shared context keeps the current fighters and services visible without circular imports.
 export function register(sbContext) {
   sbContext.drawFlagAfghanistan_afghanistan = function (x, y, w, h) {
@@ -29,6 +30,8 @@ export function register(sbContext) {
     f.afghanRifleCd = 0;
     f.afghanRifleActive = 0;
     f.afghanRifleTick = 0;
+    f.afghanRifleShots = 0;
+    f._afgDetonateHeld = false;
     f.afghanNetCd = 0;
     f._afgZHeld = false;
     f._afgXHeld = false;
@@ -149,104 +152,11 @@ export function register(sbContext) {
   };
 
   sbContext.drawAfghanBaseForm_afghanistan = function (f) {
-    sbContext.drawAfghanCloak(f, false);
-    if (f.afghanC4Charging) {
-      sbContext.ctx.save();
-      sbContext.ctx.translate(f.x + f.facing * 30, f.y - 100);
-      sbContext.ctx.scale(f.facing, 1);
-      sbContext.ctx.fillStyle = "#4a3a20";
-      sbContext.ctx.fillRect(-10, -8, 20, 16);
-      sbContext.ctx.fillStyle = "#ff2222";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-      sbContext.ctx.strokeStyle = "#000";
-      sbContext.ctx.lineWidth = 1;
-      sbContext.ctx.strokeRect(-10, -8, 20, 16);
-      // Индикатор заряда
-      const p = Math.min(1, f.afghanC4ChargeT / 1.5);
-      sbContext.ctx.fillStyle = "#ffaa00";
-      sbContext.ctx.fillRect(-10, 10, 20 * p, 3);
-      sbContext.ctx.restore();
-    }
-    if (f.attack && f.attack.type === "punch")
-      sbContext.drawAfghanPistolAttack(f);
-    if (f.afghanRifleActive > 0) {
-      sbContext.ctx.save();
-      sbContext.ctx.translate(f.x + f.facing * 35, f.y - 100);
-      sbContext.ctx.scale(f.facing, 1);
-      sbContext.ctx.fillStyle = "#2a2a2a";
-      sbContext.ctx.fillRect(0, -5, 40, 10);
-      sbContext.ctx.fillStyle = "#111";
-      sbContext.ctx.fillRect(40, -3, 6, 6);
-      sbContext.ctx.restore();
-    }
+    drawAfghanBody(sbContext, f, false);
   };
 
   sbContext.drawAfghanUltForm_afghanistan = function (f) {
-    const saved = f.ultTimer;
-    f.ultTimer = 0;
-    sbContext.drawFighter_base(f);
-    f.ultTimer = saved;
-    sbContext.ctx.save();
-    sbContext.ctx.translate(f.x, f.y);
-    sbContext.ctx.scale(f.facing, 1);
-    const t = f.animTime || 0;
-    const sway = Math.sin(t * 3) * 1;
-    for (let i = 0; i < 4; i++) {
-      sbContext.ctx.fillStyle = "#2a2a1a";
-      sbContext.ctx.fillRect(-20 + i * 10 + sway, -145, 8, 20);
-      sbContext.ctx.strokeStyle = "#000";
-      sbContext.ctx.lineWidth = 1;
-      sbContext.ctx.strokeRect(-20 + i * 10 + sway, -145, 8, 20);
-    }
-    for (let i = 0; i < 6; i++) {
-      sbContext.ctx.fillStyle = "#2a2a1a";
-      sbContext.ctx.fillRect(-25 + i * 9, -75, 7, 15);
-      sbContext.ctx.strokeStyle = "#000";
-      sbContext.ctx.strokeRect(-25 + i * 9, -75, 7, 15);
-    }
-    for (let i = 0; i < 3; i++) {
-      sbContext.ctx.fillStyle = "#4a5a1a";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(-15 + i * 15 + sway, -160, 5, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-      sbContext.ctx.strokeStyle = "#2a3a0a";
-      sbContext.ctx.lineWidth = 1;
-      sbContext.ctx.stroke();
-      sbContext.ctx.strokeStyle = "#666";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(-15 + i * 15 + sway, -165);
-      sbContext.ctx.lineTo(-15 + i * 15 + sway, -170);
-      sbContext.ctx.stroke();
-    }
-    for (let i = 0; i < 5; i++) {
-      sbContext.ctx.fillStyle = "#4a5a1a";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(-30 + i * 15, -55, 5, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-    }
-    sbContext.ctx.strokeStyle = "#aa8820";
-    sbContext.ctx.lineWidth = 3;
-    sbContext.ctx.beginPath();
-    sbContext.ctx.moveTo(-20, -140);
-    sbContext.ctx.lineTo(20, -100);
-    sbContext.ctx.stroke();
-    sbContext.ctx.beginPath();
-    sbContext.ctx.moveTo(20, -140);
-    sbContext.ctx.lineTo(-20, -100);
-    sbContext.ctx.stroke();
-    for (let i = 0; i < 5; i++) {
-      const t2 = i / 4;
-      sbContext.ctx.fillStyle = "#d4af37";
-      sbContext.ctx.beginPath();
-      sbContext.ctx.arc(-20 + t2 * 40, -140 + t2 * 40, 2, 0, Math.PI * 2);
-      sbContext.ctx.fill();
-    }
-    sbContext.ctx.fillStyle = "#1a1a1a";
-    sbContext.ctx.fillRect(-35, -180, 70, 8);
-    sbContext.ctx.fillRect(-30, -170, 60, 6);
-    sbContext.ctx.restore();
+    drawAfghanBody(sbContext, f, true);
   };
 
   sbContext.drawAfghanCast_afghanistan = function (f) {
@@ -272,6 +182,7 @@ export function register(sbContext) {
       sbContext.ctx.save();
       sbContext.ctx.globalAlpha = Math.min(1, c.life * 2);
       sbContext.ctx.translate(c.x, c.y);
+      sbContext.ctx.scale(1.35, 1.35);
       sbContext.ctx.rotate(c.rot);
       sbContext.ctx.scale(c.facing, 1);
       sbContext.ctx.fillStyle = sbContext.AFGHANISTAN_COLORS.cloak;
@@ -317,23 +228,7 @@ export function register(sbContext) {
   };
 
   sbContext.drawAfghanNetOverlay_afghanistan = function (f) {
-    if (!(f.afghanNetTimer > 0)) return;
-    sbContext.ctx.save();
-    sbContext.ctx.translate(f.x, f.y);
-    sbContext.ctx.globalAlpha = 0.7 + Math.sin(performance.now() * 0.02) * 0.1;
-    sbContext.ctx.strokeStyle = "#888";
-    sbContext.ctx.lineWidth = 2;
-    for (let i = -4; i <= 4; i++) {
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(i * 10, -180);
-      sbContext.ctx.lineTo(i * 10 + 5, 0);
-      sbContext.ctx.stroke();
-      sbContext.ctx.beginPath();
-      sbContext.ctx.moveTo(-50, -180 + (i + 4) * 22);
-      sbContext.ctx.lineTo(50, -175 + (i + 4) * 22);
-      sbContext.ctx.stroke();
-    }
-    sbContext.ctx.restore();
+    drawNetWrap(sbContext.ctx, f);
   };
 
   sbContext.drawAfghanProjectiles_afghanistan = function () {
@@ -354,7 +249,7 @@ export function register(sbContext) {
         sbContext.ctx.fillStyle = "#ff8800";
         sbContext.ctx.font = "bold 9px Arial";
         sbContext.ctx.textAlign = "center";
-        sbContext.ctx.fillText(Math.max(0, Math.ceil(c.timer)), 0, 0);
+        sbContext.ctx.fillText(c.owner === sbContext.p1 ? "Q" : "7", 0, 0);
       } else {
         sbContext.ctx.fillStyle = "#4a3a20";
         sbContext.ctx.fillRect(-10, -8, 20, 16);
@@ -395,6 +290,7 @@ export function register(sbContext) {
     for (const p of sbContext.afghanPlanes) {
       sbContext.ctx.save();
       sbContext.ctx.translate(p.x, p.y);
+      sbContext.ctx.scale(4, 4);
       sbContext.ctx.rotate(Math.PI * 0.05);
       sbContext.ctx.fillStyle = "#888";
       sbContext.ctx.beginPath();
@@ -418,8 +314,7 @@ export function register(sbContext) {
   };
 
   sbContext.updateAfghanProjectiles_afghanistan = function (dt) {
-    for (let i = sbContext.afghanC4s.length - 1; i >= 0; i--) {
-      const c = sbContext.afghanC4s[i];
+    for (const c of sbContext.afghanC4s) {
       if (!c.landed) {
         c.vy += 1400 * dt;
         c.x += c.vx * dt;
@@ -430,26 +325,42 @@ export function register(sbContext) {
           c.vx = 0;
           c.vy = 0;
         }
-      } else {
-        c.timer -= dt;
-        const enemy = c.owner === sbContext.p1 ? sbContext.p2 : sbContext.p1;
-        if (
-          enemy &&
-          enemy.hp > 0 &&
-          Math.hypot(enemy.x - c.x, enemy.y - 80 - (c.y - 20)) < 70
-        )
-          c.timer = 0;
-        if (c.timer <= 0) {
+      }
+    }
+    for (const owner of [sbContext.p1, sbContext.p2]) {
+      let landed = sbContext.afghanC4s.filter(
+        (c) => c.owner === owner && c.landed,
+      );
+      while (landed.length > 5) {
+        const oldest = landed.shift();
+        sbContext.afghanC4s.splice(sbContext.afghanC4s.indexOf(oldest), 1);
+      }
+      const pressed = owner.isDown(owner === sbContext.p1 ? "KeyQ" : "Numpad7");
+      if (
+        pressed &&
+        !owner._afgDetonateHeld &&
+        owner.hp > 0 &&
+        sbContext.game.state === "fighting"
+      ) {
+        for (const c of landed) {
           sbContext.spawnExplosion(c.x, c.y - 20);
-          if (
-            enemy &&
-            enemy.hp > 0 &&
-            Math.hypot(enemy.x - c.x, enemy.y - 80 - (c.y - 20)) < 120
-          )
-            enemy.takeDamage(15, Math.sign(enemy.x - c.x) || 1);
-          sbContext.afghanC4s.splice(i, 1);
+          sbContext.doShake(14, 0.22);
+          for (const fighter of [sbContext.p1, sbContext.p2])
+            if (
+              fighter.hp > 0 &&
+              Math.hypot(fighter.x - c.x, fighter.y - 70 - (c.y - 20)) < 150
+            ) {
+              const dir = Math.sign(fighter.x - c.x) || fighter.facing;
+              if (fighter !== owner) fighter.takeDamage(15, dir);
+              fighter.blastPushTimer = 0.3;
+              fighter.blastPushVelocity = dir * 600;
+              fighter.vy = Math.min(fighter.vy, -300);
+              fighter.onGround = false;
+            }
+          sbContext.afghanC4s.splice(sbContext.afghanC4s.indexOf(c), 1);
         }
       }
+      owner._afgDetonateHeld = !!pressed;
     }
     for (let i = sbContext.afghanBullets.length - 1; i >= 0; i--) {
       const b = sbContext.afghanBullets[i];
@@ -764,7 +675,7 @@ export function register(sbContext) {
               landed: false,
             });
             this.afghanC4Charging = false;
-            this.afghanC4Cd = 8;
+            this.afghanC4Cd = 5;
             sbContext.playSound(300, 0.15, "triangle", 0.08);
           }
         }
@@ -777,7 +688,8 @@ export function register(sbContext) {
           this.afghanRifleActive <= 0
         ) {
           this._afgXHeld = true;
-          this.afghanRifleActive = 3.0;
+          this.afghanRifleActive = 1;
+          this.afghanRifleShots = 5;
           this.afghanRifleTick = 0;
           this.afghanRifleCd = 8;
           sbContext.playSound(500, 0.1, "square", 0.06);
@@ -808,17 +720,23 @@ export function register(sbContext) {
 
     // Тики стрельбы
     if (this.afghanRifleActive > 0) {
-      this.afghanRifleActive -= dt;
       this.afghanRifleTick -= dt;
-      if (this.afghanRifleTick <= 0 && allowInput) {
-        this.afghanRifleTick = 0.1;
+      if (
+        this.afghanRifleTick <= 0 &&
+        allowInput &&
+        this.afghanRifleShots > 0 &&
+        this.hitstun <= 0
+      ) {
+        this.afghanRifleTick = 0.09;
+        this.afghanRifleShots--;
+        if (this.afghanRifleShots === 0) this.afghanRifleActive = 0;
         sbContext.afghanBullets.push({
           x: this.x + this.facing * 60,
           y: this.y - 100,
           vx: this.facing * 1400,
           vy: 0,
           owner: this,
-          damage: 3,
+          damage: 5,
           life: 1.5,
         });
         sbContext.spawnMuzzleFlash(
@@ -859,8 +777,8 @@ export function register(sbContext) {
         const ang = Math.random() * Math.PI * 2;
         const speed = 250 + Math.random() * 250;
         sbContext.afghanGrenades.push({
-          x: this.x,
-          y: this.y - 100,
+          x: this.x + this.facing * Math.cos(this.animTime * 35 + 1) * 68,
+          y: this.y - 120 + Math.sin(this.animTime * 35 + 1) * 42,
           vx: Math.cos(ang) * speed,
           vy: Math.sin(ang) * speed - 250,
           owner: this,
@@ -1006,11 +924,11 @@ export function register(sbContext) {
         skills: [
           [
             "Z · C4",
-            "Достаёт заряд и бросает. При удержании дальность растёт. Взрыв через 4с или при подходе врага. 15 урона в радиусе 120.",
+            "Бросок C4, удержание увеличивает дальность. До 5 бомб на земле. Q / Num7 подрывает свои: 15 урона врагу, обоим отталкивание, радиус 150. КД 5с.",
           ],
           [
             "X · АВТОМАТ",
-            "Стреляет из-под плаща 3с. Персонаж замедлен. Получение урона прерывает стрельбу.",
+            "Быстрая очередь: ровно 5 патронов по 5 урона. Персонаж замедлен. Получение урона прерывает стрельбу.",
           ],
           [
             "C · СЕТКА",
