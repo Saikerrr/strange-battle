@@ -349,7 +349,7 @@ export function register(sbContext) {
       legLenL = 45;
       legLenR = 45;
     }
-    if (f.isChina && f.noodleMode && !isUlt) {
+    if (f.noodleMode && !isUlt) {
       armR = 0.3;
       armLenR = 44;
     }
@@ -357,7 +357,7 @@ export function register(sbContext) {
       armR = -1.25 + Math.sin((1.2 - f.burgerEatTimer) * 8) * 0.16;
       armLenR = 44;
     }
-    if (f.charType === "russia" && !isUlt && f.attack?.type === "uppercut") {
+    if (!isUlt && f.attack?.type === "uppercut") {
       armR = f.attack.timer < 0.5 ? -1.9 : 0.35;
       armLenR = 53;
     }
@@ -391,7 +391,9 @@ export function register(sbContext) {
       legL,
       legLenL,
       c,
-      f.onGround ? 0 : 0.9,
+      f.onGround
+        ? 0
+        : -(0.32 + 0.46 * Math.max(0, Math.min(1, 0.5 - f.vy / 1000))),
       f.isJapan,
     );
     sbContext.drawArm(-14, sy, armL, armLenL, c);
@@ -507,7 +509,9 @@ export function register(sbContext) {
       legR,
       legLenR,
       c,
-      f.onGround ? 0 : 0.75,
+      f.onGround
+        ? 0
+        : -(0.24 + 0.38 * Math.max(0, Math.min(1, 0.5 - f.vy / 1000))),
       f.isJapan,
     );
 
@@ -688,14 +692,14 @@ export function register(sbContext) {
 
     sbContext.drawArm(14, sy, armR, armLenR, c);
     const propHand = sbContext.limbEnd(14, sy, armR, armLenR);
-    if (f.charType === "russia" && !isUlt && f.attack?.type === "uppercut")
+    if (!isUlt && f.attack?.type === "uppercut")
       drawBalalaika(
         sbContext.ctx,
         propHand.x,
         propHand.y,
         f.attack.timer < 0.5 ? -0.6 : 1.15,
       );
-    if (f.isAmerica && f.burgerEatTimer > 0)
+    if (f.burgerEatTimer > 0)
       drawBurger(
         sbContext.ctx,
         propHand.x,

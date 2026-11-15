@@ -1,3 +1,4 @@
+import { abilityById } from "../characters/ability-kit.js";
 const kits = {
   ukraine: [
     ["drone", "missile", "bomb"],
@@ -25,6 +26,8 @@ const kits = {
   ],
 };
 export function skillArt(f, index) {
+  if (f.draftLoadout && f.ultTimer <= 0)
+    return abilityById(f.draftLoadout[index]).art;
   return (kits[f.charType] || kits.russia)[f.ultTimer > 0 ? 1 : 0][index];
 }
 

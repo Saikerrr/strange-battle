@@ -16,10 +16,16 @@ export function setScreenFlash(value) {
 }
 
 export function doShake(i, d) {
-  const intensity = Math.max(1, i * 0.68);
-  screenShake.intensity = Math.max(screenShake.intensity, intensity);
-  screenShake.timer = d;
-  screenShake.duration = d;
+  const intensity = Math.min(12, Math.max(0.6, i * 0.42));
+  // Repeated projectiles must not keep restarting a full-strength earthquake.
+  if (screenShake.timer > 0 && intensity < screenShake.intensity * 0.75) return;
+  const remaining =
+    screenShake.timer > 0
+      ? (screenShake.intensity * screenShake.timer) / screenShake.duration
+      : 0;
+  screenShake.intensity = Math.max(remaining, intensity);
+  screenShake.timer = Math.min(0.32, d * 0.75);
+  screenShake.duration = screenShake.timer;
 }
 
 export function flash(c) {

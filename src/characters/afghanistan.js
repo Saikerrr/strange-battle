@@ -1,3 +1,4 @@
+import { hasSkills, updatesSkills, skillDown } from "./ability-kit.js";
 import { drawAfghanBody, drawNetWrap } from "../rendering/afghan-body.js";
 // Shared context keeps the current fighters and services visible without circular imports.
 export function register(sbContext) {
@@ -458,7 +459,7 @@ export function register(sbContext) {
   sbContext.fighter_reset_afghanistan = function () {
     sbContext.fighter_reset_japan.call(this);
     this.isAfghanistan = this.charType === "afghanistan";
-    if (this.isAfghanistan) sbContext.afghanInitState(this);
+    sbContext.afghanInitState(this);
   };
 
   sbContext.fighter_castBlockade_afghanistan = function () {
@@ -508,18 +509,25 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_takeDamage_afghanistan = function (dmg, dir) {
+    const before = this.hp;
     if (this.isAfghanistan) {
-      if (this.afghanRifleActive > 0) this.afghanRifleActive = 0;
-      if (this.afghanMinigunActive > 0) this.afghanMinigunActive = 0;
       if (this.ultTimer > 0) {
         const saved = this.ultTimer;
         this.ultTimer = 0;
         sbContext.fighter_takeDamage_japan.call(this, dmg, dir);
         this.ultTimer = saved;
+        if (this.hp < before) {
+          this.afghanRifleActive = 0;
+          this.afghanMinigunActive = 0;
+        }
         return;
       }
     }
     sbContext.fighter_takeDamage_japan.call(this, dmg, dir);
+    if (this.hp < before) {
+      this.afghanRifleActive = 0;
+      this.afghanMinigunActive = 0;
+    }
   };
 
   sbContext.fighter_startDash_afghanistan = function () {
@@ -528,7 +536,7 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_update_afghanistan = function (dt, opponent, allowInput) {
-    if (!this.isAfghanistan || this.trainingDummy) {
+    if (!updatesSkills(this, "afghanistan") || this.trainingDummy) {
       const beforeX = this.x;
       sbContext.fighter_update_japan.call(this, dt, opponent, allowInput);
       if (this.afghanNetTimer > 0) {
@@ -556,6 +564,8 @@ export function register(sbContext) {
     const beforeX = this.x;
     const canAct =
       allowInput &&
+      hasSkills(this, "afghanistan") &&
+      this.blockedTimer <= 0 &&
       this.hp > 0 &&
       this.hitstun <= 0 &&
       !this.carried &&
@@ -563,9 +573,9 @@ export function register(sbContext) {
       !this.attack;
 
     if (canAct) {
-      const zDown = this.isDown(this.controls.skill1);
-      const xDown = this.isDown(this.controls.skill2);
-      const cDown = this.isDown(this.controls.skill3);
+      const zDown = skillDown(this, "afghanistan", 0);
+      const xDown = skillDown(this, "afghanistan", 1);
+      const cDown = skillDown(this, "afghanistan", 2);
 
       if (this.ultTimer > 0) {
         // ===== УЛЬТА =====

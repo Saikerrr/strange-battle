@@ -12,6 +12,8 @@ const assetNames = [
   "flag_cn",
   "flag_jp",
   "flag_af",
+  "draftBackground",
+  "draftCard",
 ];
 
 export async function loadTitleImages() {
@@ -31,7 +33,11 @@ export async function loadTitleImages() {
               resolve([name, flag]);
               return;
             }
-            if (name === "background" || name.startsWith("selection")) {
+            if (
+              name === "background" ||
+              name.startsWith("selection") ||
+              name.startsWith("draft")
+            ) {
               resolve([name, image]);
               return;
             }
@@ -47,15 +53,20 @@ export async function loadTitleImages() {
           };
           image.onerror = () =>
             reject(new Error(`Cannot load menu image: ${name}`));
-          image.src = name.startsWith("flag_")
+          image.src = name.startsWith("draft")
             ? new URL(
-                `../../assets/flags/${name.slice(5)}.svg`,
+                `../../assets/draft/${name === "draftBackground" ? "background" : "card"}.png`,
                 import.meta.url,
               ).href
-            : new URL(
-                `../../assets/menu/${{ selectionBackground: "selection-background", selectionReference: "selection-reference" }[name] || name}.png`,
-                import.meta.url,
-              ).href;
+            : name.startsWith("flag_")
+              ? new URL(
+                  `../../assets/flags/${name.slice(5)}.svg`,
+                  import.meta.url,
+                ).href
+              : new URL(
+                  `../../assets/menu/${{ selectionBackground: "selection-background", selectionReference: "selection-reference" }[name] || name}.png`,
+                  import.meta.url,
+                ).href;
         }),
     ),
   );

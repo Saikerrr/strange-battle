@@ -1,4 +1,12 @@
-const menus = new Set(["title", "select", "controls", "matchEnd"]);
+const menus = new Set([
+  "title",
+  "select",
+  "controls",
+  "matchEnd",
+  "draftSetup",
+  "draftPick",
+  "draftModel",
+]);
 const url = (name) =>
   new URL(`../../assets/audio/${name}`, import.meta.url).href;
 

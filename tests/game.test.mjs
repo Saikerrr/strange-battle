@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createGame } from "../src/engine/create-game.js";
 import { ROSTER } from "../src/characters/roster.js";
+import {
+  ABILITIES,
+  abilityCooldown,
+  skillDown,
+  passiveInfo,
+} from "../src/characters/ability-kit.js";
 
 const gradient = { addColorStop() {} };
 const drawnText = [];
@@ -54,6 +60,7 @@ const countries = [
 ];
 
 function begin(p1, p2, mode = "pvp") {
+  g.game.draftEnabled = false;
   g.game.mode = mode;
   g.selections.p1 = p1;
   g.selections.p2 = p2;
@@ -276,6 +283,7 @@ test("Enter does nothing on the title screen; three buttons still choose their m
     g.goToTitle();
     g.render();
     assert.deepEqual(Object.keys(g.buttons).sort(), [
+      "play_draft",
       "play_practice",
       "play_pve",
       "play_pvp",
@@ -523,4 +531,240 @@ test("dragon flight is steerable and releases its victim when interrupted", () =
   g.p1.update(0.01, g.p2, true);
   assert.equal(g.p2.carried, false);
   assert.equal(g.p1.dragonRush, 0);
+});
+
+test("screen shake is weaker, bounded and forgets an expired large impact", () => {
+  g.screenShake.timer = 0;
+  g.doShake(100, 2);
+  assert.equal(g.screenShake.intensity, 12);
+  assert.equal(g.screenShake.duration, 0.32);
+  const timer = g.screenShake.timer;
+  g.doShake(2, 0.1);
+  assert.equal(g.screenShake.timer, timer);
+  g.screenShake.timer = 0;
+  g.doShake(6, 0.1);
+  assert.equal(g.screenShake.intensity, 2.52);
+  assert.ok(g.screenShake.duration < 0.1);
+});
+
+test("draft alternates six globally unique picks, chooses models last and resets normal modes", () => {
+  begin("russia", "america");
+  g.beginDraft();
+  for (let turn = 0; turn < 6; turn++) {
+    assert.equal(g.draft.turn, turn);
+    assert.equal(g.draft.picks[turn % 2].length, Math.floor(turn / 2));
+    assert.equal(new Set(g.draft.offers).size, 3);
+    assert.ok(g.draft.offers.every((id) => !g.draft.picks.flat().includes(id)));
+    assert.equal(g.chooseDraftSkill("invalid"), false);
+    assert.equal(g.chooseDraftSkill(g.draft.offers[0]), true);
+    g.render();
+  }
+  assert.equal(g.game.state, "draftModel");
+  assert.equal(new Set(g.draft.picks.flat()).size, 6);
+  g.chooseDraftModel("china");
+  g.chooseDraftModel("japan");
+  assert.equal(g.game.state, "roundStart");
+  assert.equal(g.p1.charType, "china");
+  assert.deepEqual(g.p1.draftLoadout, g.draft.picks[0]);
+  const kit = [...g.p1.draftLoadout];
+  g.startRound();
+  assert.deepEqual(g.p1.draftLoadout, kit);
+  g.goToTitle();
+  begin("russia", "america");
+  assert.equal(g.p1.draftLoadout, null);
+});
+
+test("draft bot receives offers and completes both its skill and model turns", () => {
+  begin("russia", "america", "pve");
+  g.beginDraft();
+  for (let round = 0; round < 3; round++) {
+    g.chooseDraftSkill(g.draft.offers[0]);
+    const offered = [...g.draft.offers];
+    g.updateGame(0.8);
+    assert.ok(offered.includes(g.draft.picks[1][round]));
+  }
+  g.chooseDraftModel("afghanistan");
+  g.updateGame(0.8);
+  assert.equal(g.game.state, "roundStart");
+  assert.equal(g.p2.isAI, true);
+  assert.equal(new Set([...g.p1.draftLoadout, ...g.p2.draftLoadout]).size, 6);
+  g.goToTitle();
+});
+
+test("every ordinary ability works in every draft slot on every model and side", () => {
+  for (const model of countries)
+    for (const ability of ABILITIES)
+      for (const slot of [0, 1, 2])
+        for (const side of [1, 2]) {
+          begin(model, model);
+          const f = side === 1 ? g.p1 : g.p2,
+            enemy = side === 1 ? g.p2 : g.p1;
+          const others = ABILITIES.filter((a) => a.country !== ability.country)
+            .slice(0, 2)
+            .map((a) => a.id);
+          f.draftLoadout = [...others];
+          f.draftLoadout.splice(slot, 0, ability.id);
+          f.x = 1500;
+          enemy.x = 1800;
+          const key =
+            side === 1
+              ? ["KeyZ", "KeyX", "KeyC"][slot]
+              : ["Numpad1", "Numpad2", "Numpad3"][slot];
+          g.keys[key] = true;
+          assert.equal(skillDown(f, ability.country, ability.index), true);
+          f.update(0.016, enemy, true);
+          g.keys[key] = false;
+          f.update(0.016, enemy, true);
+          const activated =
+            abilityCooldown(f, ability) > 0 ||
+            (ability.key === "noodle" && f.noodleCharges === 5) ||
+            (ability.key === "astral" && f.japanAstralTimer > 0) ||
+            (ability.key === "parry" &&
+              (f.japanParryPrep > 0 || f.japanParryStance > 0));
+          assert.ok(activated, `${model} P${side} ${ability.id} slot${slot}`);
+          g.render();
+        }
+});
+
+test("draft borrowed rifle, astral, parry and C4 preserve their ongoing effects", () => {
+  begin("america", "russia");
+  g.p1.draftLoadout = ["afghanistan.rifle", "japan.astral", "afghanistan.c4"];
+  g.keys.KeyZ = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyZ = false;
+  for (let i = 0; i < 50; i++) g.p1.update(0.016, g.p2, true);
+  assert.equal(g.afghanBullets.length, 5);
+  g.keys.KeyX = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyX = false;
+  const hp = g.p1.hp;
+  g.p1.takeDamage(20, 1);
+  assert.equal(g.p1.hp, hp);
+  // Cancel the borrowed astral using its assigned slot, then charge C4 in slot C.
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyX = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyX = false;
+  assert.equal(g.p1.japanAstralTimer, 0);
+  g.keys.KeyC = true;
+  g.p1.update(0.1, g.p2, true);
+  g.keys.KeyC = false;
+  g.p1.update(0.01, g.p2, true);
+  assert.equal(g.afghanC4s.length, 1);
+  begin("america", "russia");
+  g.p1.draftLoadout = ["japan.parry", "america.flag", "china.firework"];
+  g.keys.KeyZ = true;
+  g.p1.update(0.01, g.p2, true);
+  g.keys.KeyZ = false;
+  for (let i = 0; i < 55; i++) g.p1.update(0.01, g.p2, true);
+  assert.ok(g.p1.japanParryStance > 0);
+  g.p2.x = g.p1.x + 50;
+  g.p2.facing = -1;
+  const before = g.p1.hp;
+  g.p2.startAttack("punch");
+  g.p2.updateAttack(0.1, g.p1);
+  assert.equal(g.p1.hp, before);
+  assert.ok(g.p2.starStunTimer > 0);
+});
+
+test("full model ultimate replaces draft controls, icons, passives then restores picks", () => {
+  for (const model of countries) {
+    begin(model, "america");
+    const f = g.p1;
+    f.draftLoadout = ABILITIES.filter((a) => a.country !== model)
+      .slice(0, 3)
+      .map((a) => a.id);
+    const before = [...f.draftLoadout];
+    f.noodleMode = true;
+    g.triggerUlt(f, g.p2);
+    assert.equal(f.noodleMode, false);
+    for (let i = 0; i < 3; i++) {
+      g.keys[["KeyZ", "KeyX", "KeyC"][i]] = true;
+      assert.equal(skillDown(f, model, i), true);
+      g.keys[["KeyZ", "KeyX", "KeyC"][i]] = false;
+    }
+    assert.ok(passiveInfo(f) || model === "afghanistan");
+    f.ultTimer = 0;
+    assert.deepEqual(f.draftLoadout, before);
+    g.keys.KeyZ = true;
+    const a = ABILITIES.find((a) => a.id === before[0]);
+    assert.equal(skillDown(f, a.country, a.index), true);
+  }
+});
+
+test("HUD hover exposes normal, drafted, ultimate and passive text without changing combat", () => {
+  begin("ukraine", "afghanistan");
+  g.drawHUD();
+  const first = g.hudHitAreas[0];
+  g.hudPointer = { x: first.x + 10, y: first.y + 10 };
+  drawnText.length = 0;
+  g.drawHUD();
+  assert.ok(drawnText.includes("Дрон"));
+  g.p1.draftLoadout = ["america.burger", "china.lantern", "afghanistan.rifle"];
+  drawnText.length = 0;
+  g.drawHUD();
+  assert.ok(drawnText.includes("Бургер"));
+  g.triggerUlt(g.p1, g.p2);
+  g.drawHUD();
+  const passive = g.hudHitAreas.find((a) => a.info.name === "Аура зомби");
+  assert.ok(passive);
+  g.hudPointer = { x: passive.x + 5, y: passive.y + 5 };
+  drawnText.length = 0;
+  g.drawHUD();
+  assert.ok(drawnText.includes("Аура зомби"));
+  assert.equal(g.game.state, "fighting");
+  g.hudPointer = null;
+});
+
+test("AI approaches, uses cooldown-ready draft skills, faces the target and reacts after observation", () => {
+  const random = Math.random;
+  Math.random = () => 0.5;
+  try {
+    begin("russia", "japan", "pve");
+    g.game.difficulty = "hard";
+    g.p2.draftLoadout = ["america.burger", "afghanistan.rifle", "japan.parry"];
+    g.p1.x = 1500;
+    g.p2.x = 2400;
+    g.updateAI(g.p2, g.p1);
+    assert.equal(g.p2.aiKeys.Numpad2, true);
+    assert.equal(g.p2.facing, -1);
+    assert.equal(g.p2.aiKeys.ArrowRight, undefined);
+    g.p2.afghanRifleCd = 8;
+    g.updateAI(g.p2, g.p1);
+    assert.equal(g.p2.aiKeys.Numpad2, undefined);
+    assert.equal(g.p2.aiKeys.ArrowLeft, true);
+    g.p2.x = 1580;
+    g.p1.startAttack("chargedPunch");
+    g.p2.aiMemory = null;
+    g.updateAI(g.p2, g.p1);
+    assert.equal(g.p2.aiKeys.Numpad3, undefined);
+    g.updateAI(g.p2, g.p1);
+    assert.equal(g.p2.aiKeys.Numpad3, true);
+  } finally {
+    Math.random = random;
+  }
+});
+
+test("every hard AI can damage a stationary opponent without stat bonuses", () => {
+  const random = Math.random;
+  Math.random = () => 0.5;
+  try {
+    for (const country of countries) {
+      begin("russia", country, "pve");
+      g.game.difficulty = "hard";
+      for (
+        let frame = 0;
+        frame < 1200 && g.p1.hp === 100 && g.game.p2Wins === 0;
+        frame++
+      )
+        g.updateGame(1 / 60);
+      assert.ok(
+        g.p1.hp < 100 || g.game.p2Wins > 0,
+        country + " failed to engage",
+      );
+      assert.equal(g.p2.maxHp, 100, country + " must not get extra health");
+    }
+  } finally {
+    Math.random = random;
+  }
 });

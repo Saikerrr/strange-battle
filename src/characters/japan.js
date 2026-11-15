@@ -1,3 +1,4 @@
+import { hasSkills, updatesSkills, skillDown } from "./ability-kit.js";
 // Shared context keeps the current fighters and services visible without circular imports.
 export function register(sbContext) {
   sbContext.drawFlagJapan_japan = function (x, y, w, h) {
@@ -78,7 +79,13 @@ export function register(sbContext) {
 
   sbContext.drawArm_japan = function (sx, sy, ang, len, c) {
     const f = sbContext._jpCurrentFighter;
-    const isJp = f && f.isJapan && !f.trainingDummy;
+    const isJp =
+      f &&
+      !f.trainingDummy &&
+      (f.isJapan ||
+        f.japanParryStance > 0 ||
+        f.japanParryPrep > 0 ||
+        f.japanStanceTimer > 0);
     if (
       isJp &&
       (f.japanParryStance > 0 || f.japanParryPrep > 0 || f.ultCharging)
@@ -217,7 +224,7 @@ export function register(sbContext) {
   };
 
   sbContext.jpDrawStanceFX_japan = function (f) {
-    if (!f.isJapan) return;
+    if (!updatesSkills(f, "japan")) return;
     if (f.japanStanceTimer > 0) {
       sbContext.ctx.save();
       sbContext.ctx.translate(f.x, f.y);
@@ -525,9 +532,8 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_takeDamage_japan = function (dmg, dir) {
-    if (this.isJapan && this.japanAstralTimer > 0) return;
+    if (this.japanAstralTimer > 0) return;
     if (
-      this.isJapan &&
       this.japanParryStance > 0 &&
       sbContext._lastMeleeAttacker &&
       sbContext._lastMeleeAttacker !== this
@@ -658,7 +664,7 @@ export function register(sbContext) {
   };
 
   sbContext.fighter_update_japan = function (dt, opponent, allowInput) {
-    if (!this.isJapan || this.trainingDummy) {
+    if (!updatesSkills(this, "japan") || this.trainingDummy) {
       sbContext.fighter_update_china.call(this, dt, opponent, allowInput);
       return;
     }
@@ -760,12 +766,12 @@ export function register(sbContext) {
         this.japanAstralCd = sbContext.JAPAN_ASTRAL_CD;
         this.state = "idle";
       }
-      if (allowInput && this.isDown(this.controls.skill3) && !this._jpCHeld) {
+      if (allowInput && skillDown(this, "japan", 2) && !this._jpCHeld) {
         this.japanAstralTimer = 0;
         this.japanAstralFade = sbContext.JAPAN_ASTRAL_FADE;
         this.japanAstralCd = sbContext.JAPAN_ASTRAL_CD;
       }
-      this._jpCHeld = allowInput ? this.isDown(this.controls.skill3) : false;
+      this._jpCHeld = allowInput ? skillDown(this, "japan", 2) : false;
       this.x += this.vx * dt;
       this.applyGravity(dt);
       this.clampX();
@@ -825,14 +831,16 @@ export function register(sbContext) {
     // ===== SKILL INPUT =====
     if (
       allowInput &&
+      hasSkills(this, "japan") &&
+      this.blockedTimer <= 0 &&
       this.hp > 0 &&
       this.hitstun <= 0 &&
       !this.carried &&
       !this.ultCharging
     ) {
-      const zDown = this.isDown(this.controls.skill1);
-      const xDown = this.isDown(this.controls.skill2);
-      const cDown = this.isDown(this.controls.skill3);
+      const zDown = skillDown(this, "japan", 0);
+      const xDown = skillDown(this, "japan", 1);
+      const cDown = skillDown(this, "japan", 2);
 
       if (zDown && !this._jpZHeld && this.japanStanceCd <= 0) {
         this._jpZHeld = true;

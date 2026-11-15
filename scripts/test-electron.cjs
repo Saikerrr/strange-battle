@@ -35,6 +35,9 @@ app.whenReady().then(async () => {
       const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;
       const c=canvas.getContext('2d');
       const pixel=(x,y)=>Array.from(c.getImageData(x,y,1,1).data);
+      c.drawImage(images.draftCard,0,0,100,100);
+      if(!(pixel(0,0)[3]===0&&pixel(50,50)[3]>240))throw Error('Draft card must have transparent outside and opaque center');
+      c.clearRect(0,0,100,100);
       drawClothFlag(c,images,'russia',10,10,64,48);
       const white=pixel(25,17),blue=pixel(25,34),red=pixel(25,51);
       if(!(white[0]>150&&white[1]>150&&white[2]>150&&blue[2]>blue[0]*2&&red[0]>red[2]*2))throw Error('Cloth flag lost Russia stripes: '+JSON.stringify({white,blue,red}));
@@ -274,6 +277,98 @@ app.whenReady().then(async () => {
       "g.selections.p1=g.selections.p2='japan';g.startMatch();g.game.state='fighting';g.p1.x=650;g.p2.x=950;g.camera.x=800;g.p1.japanParryStance=1;g.p2.ultCharging=true;g.p2.ultChargeTimer=1;g.p2.ultChargeDuration=2;g.screenFlash=0;g.render();",
     );
     await snapshot("japan-poses");
+    const clickButton = async (id) => {
+      await evaluate("g.render();");
+      const p = await pointFor(id);
+      win.webContents.sendInputEvent({ type: "mouseMove", ...p });
+      win.webContents.sendInputEvent({
+        type: "mouseDown",
+        button: "left",
+        clickCount: 1,
+        ...p,
+      });
+      await new Promise((r) => setTimeout(r, 60));
+      win.webContents.sendInputEvent({
+        type: "mouseUp",
+        button: "left",
+        clickCount: 1,
+        ...p,
+      });
+      await new Promise((r) => setTimeout(r, 60));
+      await evaluate("g.render();");
+    };
+    await evaluate("g.goToTitle();g.render();");
+    await clickButton("play_draft");
+    assert.equal(await evaluate("return g.game.state;"), "draftSetup");
+    await snapshot("draft-setup");
+    await clickButton("draft_pvp");
+    await snapshot("draft-skills");
+    for (let i = 0; i < 6; i++)
+      await clickButton(
+        await evaluate("return 'draft_skill_'+g.draft.offers[0];"),
+      );
+    assert.equal(
+      await evaluate("return new Set(g.draft.picks.flat()).size;"),
+      6,
+    );
+    await snapshot("draft-models");
+    await clickButton("draft_model_america");
+    await clickButton("draft_model_afghanistan");
+    assert.equal(await evaluate("return g.game.state;"), "roundStart");
+    await evaluate("g.game.state='fighting';g.render();");
+    const hudPoint = await evaluate(
+      "const b=g.hudHitAreas[0],r=g.canvas.getBoundingClientRect();return{x:Math.round((b.x+20)/g.W*r.width+r.left),y:Math.round((b.y+20)/g.H*r.height+r.top)};",
+    );
+    win.webContents.sendInputEvent({ type: "mouseMove", ...hudPoint });
+    await new Promise((r) => setTimeout(r, 60));
+    await snapshot("hud-skill-tooltip");
+    await evaluate(
+      "g.p1.draftLoadout=['afghanistan.rifle','japan.parry','china.noodle'];g.p1.afghanRifleActive=1;g.p2.draftLoadout=['america.burger','russia.uppercut','afghanistan.c4'];g.p2.burgerEatTimer=1;g.hudPointer=null;g.render();",
+    );
+    await snapshot("draft-equipment");
+    await evaluate(
+      "g.triggerUlt(g.p1,g.p2);g.screenFlash=0;g.screenShake.timer=0;g.particles.length=0;g.render();",
+    );
+    const passivePoint = await evaluate(
+      "const b=g.hudHitAreas.find(b=>b.info.name==='Защитный щит'),r=g.canvas.getBoundingClientRect();return{x:Math.round((b.x+15)/g.W*r.width+r.left),y:Math.round((b.y+15)/g.H*r.height+r.top)};",
+    );
+    win.webContents.sendInputEvent({ type: "mouseMove", ...passivePoint });
+    await new Promise((r) => setTimeout(r, 60));
+    await snapshot("hud-passive-tooltip");
+    await evaluate(
+      "g.p1.ultTimer=0;g.p1.y=g.p2.y=g.GROUND_Y-180;g.p1.onGround=g.p2.onGround=false;g.p1.vy=g.p2.vy=-600;g.p1.state=g.p2.state='jump';g.hudPointer=null;g.render();",
+    );
+    await snapshot("jump-rise");
+    await evaluate("g.p1.vy=g.p2.vy=600;g.render();");
+    await snapshot("jump-fall");
+    await evaluate("g.goToTitle();g.game.mode='pve';g.beginDraft();");
+    for (let i = 0; i < 3; i++)
+      await evaluate(
+        "g.chooseDraftSkill(g.draft.offers[0]);g.updateGame(.8);g.render();",
+      );
+    await evaluate(
+      "g.chooseDraftModel('japan');g.updateGame(.8);g.game.state='fighting';g.render();",
+    );
+    assert.equal(await evaluate("return g.p2.isAI;"), true);
+    assert.equal(
+      await evaluate(
+        "return new Set([...g.p1.draftLoadout,...g.p2.draftLoadout]).size;",
+      ),
+      6,
+    );
+    // Mixed kits keep all borrowed timers/projectiles finite in a real renderer.
+    await evaluate(`const {ABILITIES}=await import('./src/characters/ability-kit.js');
+      for(let model=0;model<6;model++){
+        const countries=['ukraine','russia','america','china','japan','afghanistan'];
+        g.game.draftEnabled=false;g.game.mode='pvp';g.selections.p1=countries[model];g.selections.p2=countries[(model+1)%6];g.startMatch();g.game.state='fighting';
+        g.p1.draftLoadout=[0,4,8].map(j=>ABILITIES[(model*3+j)%18].id);
+        g.p2.draftLoadout=[1,5,9].map(j=>ABILITIES[(model*3+j)%18].id);
+        for(let frame=0;frame<180;frame++){
+          for(const f of [g.p1,g.p2])for(let slot=0;slot<3;slot++){const c=f.controls['skill'+(slot+1)],key=Array.isArray(c)?c[0]:c;g.keys[key]=frame%60===slot*10;}
+          g.updateGame(1/60);if(frame%30===0)g.render();
+        }
+        for(const f of [g.p1,g.p2])for(const key of ['hp','x','y','vx','vy'])if(!Number.isFinite(f[key]))throw Error('Draft '+f.charType+'.'+key);
+      }g.goToTitle();g.render();`);
     if (errors.length) throw Error(errors.join("\n"));
     console.log(
       JSON.stringify({

@@ -1,3 +1,4 @@
+import { hasSkills, skillDown } from "../characters/ability-kit.js";
 // Shared context keeps the current fighters and services visible without circular imports.
 export function register(sbContext) {
   sbContext.fighter_reset_base = function () {
@@ -55,6 +56,7 @@ export function register(sbContext) {
     this.healTimer = 0;
     this.aiKeys = {};
     this.aiTimer = 0;
+    this.aiMemory = null;
   };
 
   sbContext.fighter_getSkillCd_base = function (name) {
@@ -309,45 +311,48 @@ export function register(sbContext) {
     if (allowInput) {
       const cd = this.skillCd;
       if (this.blockedTimer <= 0) {
-        if (this.isUkraine) {
-          if (this.isDown(this.controls.skill1) && cd.drone <= 0) {
+        if (hasSkills(this, "ukraine")) {
+          if (skillDown(this, "ukraine", 0) && cd.drone <= 0) {
             sbContext.launchDrone(this);
             cd.drone = sbContext.SKILLS.drone.cd;
             sbContext.playSound(800, 0.15, "triangle", 0.08);
           }
-          if (this.isDown(this.controls.skill2) && cd.missile <= 0) {
+          if (skillDown(this, "ukraine", 1) && cd.missile <= 0) {
             sbContext.launchMissile(this);
             cd.missile = sbContext.SKILLS.missile.cd;
             sbContext.playSound(300, 0.3, "sawtooth", 0.1);
           }
-          if (this.isDown(this.controls.skill3) && cd.bombs <= 0) {
+          if (skillDown(this, "ukraine", 2) && cd.bombs <= 0) {
             this.castBombs();
             cd.bombs = sbContext.SKILLS.bombs.cd;
           }
-        } else if (this.isAmerica) {
-          if (this.isDown(this.controls.skill1) && cd.flag <= 0) {
+        }
+        if (hasSkills(this, "america")) {
+          if (skillDown(this, "america", 0) && cd.flag <= 0) {
             this.castFlag();
             cd.flag = sbContext.SKILLS_US.flag.cd;
           }
-          if (this.isDown(this.controls.skill2) && cd.eagle <= 0) {
+          if (skillDown(this, "america", 1) && cd.eagle <= 0) {
             this.castEagle();
             cd.eagle = sbContext.SKILLS_US.eagle.cd;
           }
-          if (this.isDown(this.controls.skill3) && cd.burger <= 0) {
+          if (skillDown(this, "america", 2) && cd.burger <= 0) {
             this.castBurger();
             cd.burger = sbContext.SKILLS_US.burger.cd;
           }
-        } else if (!this.isChina) {
-          if (this.isDown(this.controls.skill1) && cd.blockade <= 0) {
-            this.castBlockade();
+        }
+        if (hasSkills(this, "russia")) {
+          if (skillDown(this, "russia", 0) && cd.blockade <= 0) {
+            sbContext.fighter_castBlockade_arena.call(this);
             cd.blockade = sbContext.SKILLS_RU.blockade.cd;
           }
-          if (this.isDown(this.controls.skill2) && cd.bear <= 0) {
-            this.castBearSkill();
+          if (skillDown(this, "russia", 1) && cd.bear <= 0) {
+            sbContext.fighter_castBearSkill_arena.call(this);
             cd.bear = sbContext.SKILLS_RU.bear.cd;
           }
-          if (this.isDown(this.controls.skill3) && cd.uppercut <= 0) {
-            this.startAttack("uppercut");
+          if (skillDown(this, "russia", 2) && cd.uppercut <= 0) {
+            if (this.ultTimer > 0) this.startAttack("uppercut");
+            else sbContext.fighter_startAttack_base.call(this, "uppercut");
             cd.uppercut = sbContext.SKILLS_RU.uppercut.cd;
           }
         }

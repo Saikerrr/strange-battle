@@ -1,3 +1,4 @@
+import { hasSkills, updatesSkills, skillDown } from "./ability-kit.js";
 import { drawChineseDragon } from "../rendering/chinese-dragon.js";
 import { releaseDragonVictim, updateDragonRush } from "./dragon-rush.js";
 // Shared context keeps the current fighters and services visible without circular imports.
@@ -48,6 +49,12 @@ export function register(sbContext) {
     sbContext.fighter_reset_arena.call(this);
     this._cnInit = false;
     sbContext.cnInit(this);
+    if (
+      this.ultTimer <= 0 &&
+      hasSkills(this, "china") &&
+      this.noodleCharges > 0
+    )
+      this.noodleMode = true;
     this.skillCd.noodle = 0;
   };
 
@@ -60,7 +67,7 @@ export function register(sbContext) {
       opponent,
       allowInput && !flying,
     );
-    if (!this.isChina || this.trainingDummy) return;
+    if (!updatesSkills(this, "china") || this.trainingDummy) return;
     sbContext.cnInit(this);
 
     // Tick CDs (skillCd.noodle сам уменьшается в базе, не дублируем)
@@ -77,6 +84,8 @@ export function register(sbContext) {
     // Нельзя кастовать в ульте-зарядке / стане / переноске
     if (
       !allowInput ||
+      !hasSkills(this, "china") ||
+      this.blockedTimer > 0 ||
       this.hitstun > 0 ||
       this.carried ||
       this.hp <= 0 ||
@@ -84,9 +93,9 @@ export function register(sbContext) {
     )
       return;
 
-    const zDown = this.isDown(this.controls.skill1);
-    const xDown = this.isDown(this.controls.skill2);
-    const cDown = this.isDown(this.controls.skill3);
+    const zDown = skillDown(this, "china", 0);
+    const xDown = skillDown(this, "china", 1);
+    const cDown = skillDown(this, "china", 2);
 
     if (this.ultTimer > 0) {
       // === ДРАКОН: Z / X / C ===
@@ -694,7 +703,7 @@ export function register(sbContext) {
       return;
     }
     sbContext.drawFighter_interface(f);
-    if (!f.isChina) return;
+    if (!f.isChina && !hasSkills(f, "china")) return;
 
     // Доширак в руке
     if (

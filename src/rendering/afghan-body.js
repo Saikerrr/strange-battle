@@ -29,19 +29,22 @@ export function drawAfghanBody(g, f, ultimate = false) {
   for (const side of [-1, 1]) {
     const x = side * 17,
       step = side * stride;
+    const tuck = f.onGround
+      ? 0
+      : Math.max(0.3, Math.min(1, 0.65 - f.vy / 1800));
     line(
       [
         [x, -77],
-        [x + step * 0.5, -38],
-        [x + step, -9],
+        [x + step * 0.5 + (side < 0 ? 22 : 15) * tuck, -38 - 14 * tuck],
+        [x + step - 4 * tuck, -9 - 15 * tuck],
       ],
       ultimate ? "#c9b68d" : "#655440",
       ultimate ? 25 : 18,
     );
     line(
       [
-        [x + step - 6, -6],
-        [x + step + 14, -6],
+        [x + step - 6 - 4 * tuck, -6 - 15 * tuck],
+        [x + step + 14 - 4 * tuck, -6 - 15 * tuck],
       ],
       "#28231c",
       11,

@@ -1,8 +1,23 @@
 import { drawSkillArt, skillArt } from "./skill-art.js";
+import { skillInfo, passiveInfo } from "../characters/ability-kit.js";
 
 export function register(g) {
-  function card(x, y, size, kind, key, cd, blocked = false) {
+  g.hudHitAreas = [];
+  g.attachHUDPointer = () => {
+    g.canvas.addEventListener("pointermove", (e) => {
+      const r = g.canvas.getBoundingClientRect();
+      g.hudPointer = {
+        x: ((e.clientX - r.left) / r.width) * g.W,
+        y: ((e.clientY - r.top) / r.height) * g.H,
+      };
+    });
+    g.canvas.addEventListener("pointerleave", () => {
+      g.hudPointer = null;
+    });
+  };
+  function card(x, y, size, kind, key, cd, blocked = false, info = null) {
     const { ctx } = g;
+    if (info) g.hudHitAreas.push({ x, y, w: size, h: size, info });
     ctx.fillStyle = "#080b12";
     ctx.fillRect(x - 3, y - 3, size + 6, size + 6);
     drawSkillArt(ctx, x, y, size, kind);
@@ -112,6 +127,7 @@ export function register(g) {
         s.key,
         s.cd,
         f.blockedTimer > 0,
+        skillInfo(g, f, i),
       ),
     );
     const charge = f.ultCharging
@@ -132,23 +148,18 @@ export function register(g) {
         }[f.charType] || "ultimate",
         f === g.p1 ? "R" : "0",
         charge,
+        false,
+        {
+          name: "Ультимейт · " + f.name,
+          text: g.sbDescription(f.charType).ult,
+        },
       );
     if (f.ultTimer > 0) {
       ctx.fillStyle = "#9d74bc";
       ctx.fillRect(barX, y + 66, barW * Math.min(1, f.ultTimer / 10), 4);
-      const passive = f.isUkraine
-        ? "aura"
-        : f.charType === "russia"
-          ? "armor"
-          : f.isAmerica
-            ? "shield"
-            : f.isJapan
-              ? "ghost"
-              : f.isChina || f.isAfghanistan
-                ? "armor"
-                : null;
+      const passive = passiveInfo(f);
       if (passive) {
-        card(barX + 302, y + 84, 48, passive, null, 0);
+        card(barX + 302, y + 84, 48, passive.art, null, 0, false, passive);
         ctx.fillStyle = "#a98aaf";
         ctx.font = "10px Arial";
         ctx.textAlign = "center";
@@ -174,6 +185,7 @@ export function register(g) {
   }
   g.drawHUD = () => {
     const { ctx, W } = g;
+    g.hudHitAreas.length = 0;
     ctx.save();
     panel(g.p1, 18);
     panel(g.p2, W - 583);
@@ -196,6 +208,47 @@ export function register(g) {
         ctx.fill();
         ctx.stroke();
       }
+    const pointer = g.hudPointer;
+    const area =
+      pointer &&
+      g.hudHitAreas.find(
+        (b) =>
+          pointer.x >= b.x &&
+          pointer.x <= b.x + b.w &&
+          pointer.y >= b.y &&
+          pointer.y <= b.y + b.h,
+      );
+    if (area && ["fighting", "roundStart", "roundEnd"].includes(g.game.state)) {
+      const x = Math.max(12, Math.min(W - 392, pointer.x - 100)),
+        y = 220,
+        width = 380;
+      ctx.font = "16px Arial";
+      const lines = [];
+      let line = "";
+      for (const word of area.info.text.split(" ")) {
+        const next = line ? line + " " + word : word;
+        if (line && ctx.measureText(next).width > width - 32) {
+          lines.push(line);
+          line = word;
+        } else line = next;
+      }
+      if (line) lines.push(line);
+      const height = 61 + lines.length * 22;
+      ctx.fillStyle = "#0e111cf5";
+      ctx.strokeStyle = "#9b77af";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#e3cdea";
+      ctx.font = "bold 18px Arial";
+      ctx.fillText(area.info.name, x + 16, y + 28);
+      ctx.font = "16px Arial";
+      ctx.fillStyle = "#d0c6d3";
+      lines.forEach((text, i) => ctx.fillText(text, x + 16, y + 57 + i * 22));
+    }
     ctx.restore();
   };
 }

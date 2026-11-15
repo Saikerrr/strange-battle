@@ -11,6 +11,7 @@ import { register as registerSelectionDesign } from "../ui/selection-design.js";
 import { register as registerCombatHUD } from "../ui/combat-hud.js";
 import { register as registerArenaDesign } from "../rendering/arena-design.js";
 import { register as registerPracticeDesign } from "../rendering/practice-design.js";
+import { register as registerAbilityDraft } from "../ui/ability-draft.js";
 import { startRound, endRound, updateGame } from "../systems/lifecycle.js";
 import { initialize } from "./initialize.js";
 import { attachInput } from "./input.js";
@@ -222,10 +223,13 @@ export function createGame({ bindInput = true, titleImages = null } = {}) {
   g.endRound = (winner) => endRound(g, winner);
   g.updateGame = (dt) => updateGame(g, dt);
   initialize(g);
+  registerAbilityDraft(g, titleImages);
   if (bindInput) {
     attachInput(g);
     g.attachTitlePointer();
     g.attachSelectionScroll();
+    g.attachDraftPointer();
+    g.attachHUDPointer();
   }
   g.initCrowd();
   return g;
