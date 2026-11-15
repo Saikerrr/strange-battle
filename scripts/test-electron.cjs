@@ -14,8 +14,10 @@ app.whenReady().then(async () => {
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false,
+      autoplayPolicy: "no-user-gesture-required",
     },
   });
+  win.webContents.setAudioMuted(true);
   win.webContents.on("console-message", (_event, level, message) => {
     if (level === 3) errors.push(message);
   });
@@ -27,7 +29,7 @@ app.whenReady().then(async () => {
     fs.mkdirSync(outputDirectory, { recursive: true });
     const evaluate = (code) =>
       win.webContents.executeJavaScript(
-        `import('./game.js').then(async ({game:g})=>{${code}})`,
+        `import('./game.js').then(async ({game:g})=>{const deadline=Date.now()+3000;while(g.sceneTransition?.progress<1){g.render();if(Date.now()>deadline)throw Error('Transition did not finish: '+g.sceneTransition.progress);await new Promise(r=>setTimeout(r,20));}${code}})`,
       );
     await evaluate(
       `g.loop=()=>{};await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));g.goToTitle();g.render();`,
@@ -42,6 +44,11 @@ app.whenReady().then(async () => {
       );
     };
     await snapshot("main-menu");
+    await evaluate(
+      `if(g.menuMusic.state()!=='loaded')await new Promise((resolve,reject)=>{g.menuMusic.once('load',resolve);g.menuMusic.once('loaderror',reject);});`,
+    );
+    assert.equal(await evaluate("return g.menuMusic.loop();"), true);
+    assert.equal(await evaluate("return g.menuMusic.playing();"), true);
     win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
     win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
     assert.equal(
@@ -147,6 +154,23 @@ app.whenReady().then(async () => {
     await snapshot("main-menu-small");
     win.setContentSize(1600, 900);
     await evaluate("g.resize();");
+    await evaluate("g.game.state='roundStart';g.render();");
+    await evaluate("await new Promise(r=>setTimeout(r,400));");
+    assert.equal(
+      await evaluate("return g.menuMusic.playing();"),
+      false,
+      "Music must stop on the arena",
+    );
+    await evaluate("g.goToTitle();g.render();");
+    assert.equal(
+      await evaluate("return g.menuMusic.playing();"),
+      true,
+      "Music must restart in menus",
+    );
+    assert.ok(
+      await evaluate("return g.menuMusic.seek()<1.5;"),
+      "Music must restart from the beginning",
+    );
     const result = await win.webContents.executeJavaScript(`(async () => {
       const {game:g}=await import('./game.js');
       g.loop=()=>{};
