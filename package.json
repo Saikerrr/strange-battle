@@ -12,5 +12,9 @@
   "devDependencies": {
     "electron": "^31.7.7",
     "prettier": "^3.10.1"
+  },
+  "dependencies": {
+    "gsap": "^3.15.1",
+    "howler": "^2.2.4"
   }
 }
