@@ -207,8 +207,8 @@ export function register(sbContext) {
       armR = -0.5;
       armLenL = 38;
       armLenR = 40;
-      legL = 1.5;
-      legR = 1.6;
+      legL = 1.5 + (f.vx ? Math.sin(f.walkCycle) * 0.3 : 0);
+      legR = 1.6 - (f.vx ? Math.sin(f.walkCycle) * 0.3 : 0);
       bob = 3;
       torsoLean = -0.05;
     } else if (f.state === "hit") {
@@ -356,7 +356,15 @@ export function register(sbContext) {
     sbContext.ctx.ellipse(0, 0, 35, 8, 0, 0, Math.PI * 2);
     sbContext.ctx.fill();
 
-    sbContext.drawLeg(-6, hy, legL, legLenL, c);
+    sbContext.drawLeg(
+      -6,
+      hy,
+      legL,
+      legLenL,
+      c,
+      f.onGround ? 0 : 0.9,
+      f.isJapan,
+    );
     sbContext.drawArm(-14, sy, armL, armLenL, c);
 
     sbContext.ctx.fillStyle = c.shorts;
@@ -464,7 +472,15 @@ export function register(sbContext) {
     }
     sbContext.ctx.restore();
 
-    sbContext.drawLeg(6, hy, legR, legLenR, c);
+    sbContext.drawLeg(
+      6,
+      hy,
+      legR,
+      legLenR,
+      c,
+      f.onGround ? 0 : 0.75,
+      f.isJapan,
+    );
 
     sbContext.ctx.fillStyle = c.skin;
     sbContext.ctx.fillRect(headOffset - 7, -122 + bob, 14, 12);
@@ -870,11 +886,27 @@ export function register(sbContext) {
     sbContext.ctx.stroke();
   };
 
-  sbContext.drawLeg_base = function (hx, hy, ang, len, c) {
-    const end = sbContext.limbEnd(hx, hy, ang, len),
-      kn = sbContext.limbEnd(hx, hy, ang, len * 0.42);
+  sbContext.drawLeg_base = function (
+    hx,
+    hy,
+    ang,
+    len,
+    c,
+    bend = 0,
+    pants = false,
+  ) {
+    const kn = sbContext.limbEnd(hx, hy, ang + bend, len * 0.46),
+      end = sbContext.limbEnd(kn.x, kn.y, ang - bend * 1.4, len * 0.54);
     sbContext.drawLimb(hx, hy, kn.x, kn.y, 16, c.shorts, c.shortsDark);
-    sbContext.drawLimb(kn.x, kn.y, end.x, end.y, 12, c.skin, c.skinDark);
+    sbContext.drawLimb(
+      kn.x,
+      kn.y,
+      end.x,
+      end.y,
+      12,
+      pants ? c.shorts : c.skin,
+      pants ? c.shortsDark : c.skinDark,
+    );
     sbContext.ctx.save();
     sbContext.ctx.translate(end.x, end.y);
     sbContext.ctx.rotate(ang);

@@ -260,8 +260,7 @@ export function register(sbContext) {
       sbContext.game.state === "fighting"
     ) {
       for (const d of sbContext.practiceDummies.slice(1)) {
-        d.animTime += dt;
-        d.hitFlash = Math.max(0, d.hitFlash - dt * 4);
+        d.update(dt, sbContext.p1, false);
       }
     }
   };
@@ -273,6 +272,12 @@ export function register(sbContext) {
     d.hp = 200;
     d.maxHp = 200;
     d.name = "МАНЕКЕН";
+    d.charType = "dummy";
+    d.isUkraine = false;
+    d.isAmerica = false;
+    d.isChina = false;
+    d.isJapan = false;
+    d.isAfghanistan = false;
     d.state = "idle";
     d.blocking = false;
     d.carried = false;

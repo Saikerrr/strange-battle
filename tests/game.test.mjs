@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createGame } from "../src/engine/create-game.js";
+import { ROSTER } from "../src/characters/roster.js";
 
 const gradient = { addColorStop() {} };
+const drawnText = [];
 const context = new Proxy(
   {},
   {
     get(target, key) {
       if (key in target) return target[key];
       if (key === "measureText") return () => ({ width: 100 });
+      if (key === "fillText") return (text) => drawnText.push(String(text));
       if (String(key).startsWith("create")) return () => gradient;
       return () => {};
     },
@@ -19,10 +22,14 @@ const context = new Proxy(
   },
 );
 const listeners = new Map();
+const canvasListeners = new Map();
 const canvas = {
   style: {},
   getContext: () => context,
-  addEventListener() {},
+  addEventListener(type, fn) {
+    if (!canvasListeners.has(type)) canvasListeners.set(type, []);
+    canvasListeners.get(type).push(fn);
+  },
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 1600, height: 900 }),
 };
 globalThis.document = { getElementById: () => canvas };
@@ -278,4 +285,95 @@ test("Enter does nothing on the title screen; three buttons still choose their m
     assert.equal(g.game.mode, mode);
     assert.equal(g.game.state, "select");
   }
+});
+
+test("selection scrolls independently as the roster grows and clips hidden hit areas", () => {
+  ROSTER.push(
+    { ...ROSTER[0], id: "test-extra-1", key: "extra1" },
+    { ...ROSTER[1], id: "test-extra-2", key: "extra2" },
+  );
+  try {
+    g.game.mode = "pvp";
+    g.game.state = "select";
+    g.render();
+    for (const fn of canvasListeners.get("wheel"))
+      fn({
+        clientX: 400,
+        clientY: 300,
+        deltaY: 300,
+        deltaMode: 0,
+        preventDefault() {},
+      });
+    assert.ok(g.selectScroll.p1 > 0);
+    assert.equal(g.selectScroll.p2, 0);
+    assert.equal(g.buttons.p1u, undefined);
+    assert.ok(g.buttons.p1extra2);
+  } finally {
+    ROSTER.splice(-2);
+    g.selectScroll.p1 = 0;
+    g.selectScroll.p2 = 0;
+  }
+});
+
+test("practice has a fixed dummy and starting a match skips the controls screen", () => {
+  g.game.mode = "practice";
+  g.game.state = "select";
+  g.render();
+  for (const c of ROSTER) assert.equal(g.buttons["p2" + c.key], undefined);
+  const b = g.buttons.start;
+  g.handleClick(b.x + b.w / 2, b.y + b.h / 2);
+  assert.equal(g.game.state, "roundStart");
+  assert.equal(g.p2.trainingDummy, true);
+});
+
+test("moving block runs at half speed and stops immediately when direction is released", () => {
+  begin("russia", "ukraine");
+  g.keys.KeyD = true;
+  g.keys.KeyS = true;
+  const x = g.p1.x;
+  g.p1.update(0.1, g.p2, true);
+  assert.equal(g.p1.blocking, true);
+  assert.equal(g.p1.vx, g.MOVE_SPEED * 0.5);
+  assert.ok(Math.abs(g.p1.x - x - 15) < 0.01);
+  g.keys.KeyD = false;
+  const stopped = g.p1.x;
+  g.p1.update(0.1, g.p2, true);
+  assert.equal(g.p1.vx, 0);
+  assert.equal(g.p1.x, stopped);
+});
+
+test("practice dummies recover from stun, cannot move, and P2 can punch on Num1", () => {
+  begin("russia", "afghanistan", "practice");
+  const d = g.p2,
+    x = d.x;
+  d.hitstun = 0.5;
+  d.starStunTimer = 0.5;
+  g.keys.ArrowRight = true;
+  for (let i = 0; i < 60; i++) d.update(1 / 60, g.p1, true);
+  assert.equal(d.x, x);
+  assert.equal(d.hitstun, 0);
+  assert.equal(d.starStunTimer, 0);
+  g.keys.Numpad1 = true;
+  d.update(1 / 60, g.p1, true);
+  assert.equal(d.attack.type, "punch");
+  const extra = new g.Fighter(2600, 1, "russia", "манекен", g.P2_CONTROLS);
+  g.sbConfigureDummy(extra);
+  extra.hitstun = 0.3;
+  extra.starStunTimer = 0.3;
+  g.practiceDummies.push(extra);
+  g.keys.Numpad1 = false;
+  step(40);
+  assert.equal(extra.hitstun, 0);
+  assert.equal(extra.starStunTimer, 0);
+});
+
+test("combat HUD uses artwork instead of emoji and exposes actual ultimate passives", () => {
+  begin("ukraine", "afghanistan");
+  g.triggerUlt(g.p1, g.p2);
+  drawnText.length = 0;
+  g.drawHUD();
+  assert.ok(drawnText.includes("ПАССИВНО"));
+  assert.ok(
+    drawnText.every((text) => !/[\p{Extended_Pictographic}]/u.test(text)),
+  );
 });

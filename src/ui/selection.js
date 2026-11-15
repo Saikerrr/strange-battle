@@ -103,7 +103,7 @@ export function register(g) {
             game.difficulty = d;
             return;
           }
-      if (hit("start")) g.goToControls();
+      if (hit("start")) g.startMatch();
       else if (hit("back")) g.goToTitle();
       return;
     }
@@ -144,7 +144,7 @@ export function register(g) {
       g.game.infoPanel = null;
       return;
     }
-    if (g.game.state === "select") g.goToControls();
+    if (g.game.state === "select") g.startMatch();
     else if (g.game.state === "controls") g.startMatch();
     else if (g.game.state === "matchEnd") g.goToSelect();
   };

@@ -2,6 +2,7 @@
 export function register(sbContext) {
   sbContext.fighter_reset_base = function () {
     this.maxHp = 100;
+    this.blastPushTimer=0;this.blastPushVelocity=0;this._afgDetonateHeld=false;
     this.hp = 100;
     this.vx = 0;
     this.vy = 0;
@@ -356,12 +357,12 @@ export function register(sbContext) {
       const wantS = this.isDown(this.controls.block);
       const wantMove =
         this.isDown(this.controls.left) || this.isDown(this.controls.right);
-      if (wantS && (this.onGround || flying) && (!wantMove || flying)) {
+      if (wantS && (this.onGround || flying)) {
         if (flying) {
           this.blocking = true;
         } else {
           const onPlat = this.getStandingPlatform();
-          if (onPlat) {
+          if (onPlat && !wantMove) {
             this.onGround = false;
             this.vy = 60;
             this.dropCooldown = 0.35;
@@ -373,6 +374,15 @@ export function register(sbContext) {
         }
       } else {
         this.blocking = false;
+      }
+
+      if (this.blocking && !flying) {
+        const direction =
+          Number(this.isDown(this.controls.right)) -
+          Number(this.isDown(this.controls.left));
+        this.vx = direction * sbContext.MOVE_SPEED * 0.5;
+        moving = direction !== 0;
+        if (moving) this.walkCycle += dt * 8;
       }
 
       if (!this.blocking) {

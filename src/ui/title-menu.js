@@ -1,4 +1,18 @@
-const assetNames = ["background", "logo", "pvp", "pve", "practice"];
+const assetNames = [
+  "background",
+  "logo",
+  "pvp",
+  "pve",
+  "practice",
+  "selectionBackground",
+  "selectionReference",
+  "flag_ua",
+  "flag_ru",
+  "flag_us",
+  "flag_cn",
+  "flag_jp",
+  "flag_af",
+];
 
 export async function loadTitleImages() {
   const entries = await Promise.all(
@@ -7,7 +21,11 @@ export async function loadTitleImages() {
         new Promise((resolve, reject) => {
           const image = new Image();
           image.onload = () => {
-            if (name === "background") {
+            if (
+              name === "background" ||
+              name.startsWith("selection") ||
+              name.startsWith("flag_")
+            ) {
               resolve([name, image]);
               return;
             }
@@ -23,10 +41,15 @@ export async function loadTitleImages() {
           };
           image.onerror = () =>
             reject(new Error(`Cannot load menu image: ${name}`));
-          image.src = new URL(
-            `../../assets/menu/${name}.png`,
-            import.meta.url,
-          ).href;
+          image.src = name.startsWith("flag_")
+            ? new URL(
+                `../../assets/flags/${name.slice(5)}.svg`,
+                import.meta.url,
+              ).href
+            : new URL(
+                `../../assets/menu/${{ selectionBackground: "selection-background", selectionReference: "selection-reference" }[name] || name}.png`,
+                import.meta.url,
+              ).href;
         }),
     ),
   );
@@ -148,7 +171,7 @@ export function register(g, images) {
       const rect = g.canvas.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * g.W;
       pointer.y = ((event.clientY - rect.top) / rect.height) * g.H;
-      if (g.game.state === "title") g.drawTitleScreen();
+      if (g.game.state === "title") g.render();
     };
     g.canvas.addEventListener("pointermove", move);
     g.canvas.addEventListener("pointerdown", (event) => {

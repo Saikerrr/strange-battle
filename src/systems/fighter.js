@@ -113,6 +113,21 @@ export function register(sbContext) {
       this.carried = false;
       this.blocking = false;
       this.state = "idle";
+      this.hitstun = Math.max(0, this.hitstun - dt);
+      this.starStunTimer = Math.max(0, (this.starStunTimer || 0) - dt);
+      this.blockedTimer = Math.max(0, this.blockedTimer - dt);
+      this.blockadeStunTimer = Math.max(0, (this.blockadeStunTimer || 0) - dt);
+      if (this.blockadeStunTicks > 0 && this.blockadeStunTimer <= 0) {
+        this.blockadeStunTicks--;
+        this.blockadeStunTimer = 1;
+        this.hitstun = Math.max(this.hitstun, 0.3);
+      }
+      const punch =
+        allowInput && this === sbContext.p2 && sbContext.keys.Numpad1;
+      if (punch && !this._dummyPunchHeld && this.hitstun <= 0)
+        this.startAttack("punch");
+      this._dummyPunchHeld = !!punch;
+      if (this.attack) this.updateAttack(dt, opponent);
       return;
     }
     sbContext.fighter_update_arena.call(this, dt, opponent, allowInput);

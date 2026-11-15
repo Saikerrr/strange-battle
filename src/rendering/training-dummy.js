@@ -1,0 +1,32 @@
+export function drawTrainingDummy(ctx, x, y, size = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size, size);
+  ctx.fillStyle = "#473b37";
+  ctx.fillRect(-7, -35, 14, 40);
+  ctx.fillStyle = "#968073";
+  ctx.fillRect(-46, 0, 92, 12);
+  ctx.fillStyle = "#a48b6a";
+  ctx.beginPath();
+  ctx.ellipse(0, -105, 31, 48, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#5d4c3b";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#bba17d";
+  ctx.beginPath();
+  ctx.arc(0, -172, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#5c3130";
+  ctx.beginPath();
+  ctx.moveTo(-12, -176);
+  ctx.lineTo(12, -168);
+  ctx.moveTo(12, -176);
+  ctx.lineTo(-12, -168);
+  ctx.stroke();
+  ctx.fillStyle = "#a48b6a";
+  ctx.fillRect(-58, -125, 30, 18);
+  ctx.fillRect(28, -125, 30, 18);
+  ctx.restore();
+}

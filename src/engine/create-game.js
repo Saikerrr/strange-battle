@@ -7,6 +7,10 @@ import { applySelections } from "../characters/roster.js";
 import { register as registerSelection } from "../ui/selection.js";
 import { register as registerControls } from "../ui/controls.js";
 import { register as registerTitleMenu } from "../ui/title-menu.js";
+import { register as registerSelectionDesign } from "../ui/selection-design.js";
+import { register as registerCombatHUD } from "../ui/combat-hud.js";
+import { register as registerArenaDesign } from "../rendering/arena-design.js";
+import { register as registerPracticeDesign } from "../rendering/practice-design.js";
 import { startRound, endRound, updateGame } from "../systems/lifecycle.js";
 import { initialize } from "./initialize.js";
 import { attachInput } from "./input.js";
@@ -209,6 +213,10 @@ export function createGame({ bindInput = true, titleImages = null } = {}) {
   registerSelection(g);
   registerControls(g);
   registerTitleMenu(g, titleImages);
+  registerSelectionDesign(g, titleImages);
+  registerCombatHUD(g);
+  registerArenaDesign(g);
+  registerPracticeDesign(g);
   g.applySelections = () => applySelections(g);
   g.startRound = () => startRound(g);
   g.endRound = (winner) => endRound(g, winner);
@@ -217,6 +225,7 @@ export function createGame({ bindInput = true, titleImages = null } = {}) {
   if (bindInput) {
     attachInput(g);
     g.attachTitlePointer();
+    g.attachSelectionScroll();
   }
   g.initCrowd();
   return g;

@@ -35,12 +35,18 @@ app.whenReady().then(async () => {
       `g.loop=()=>{};await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));g.goToTitle();g.render();`,
     );
     const snapshot = async (name) => {
+      await evaluate("g.render();");
+      await evaluate("g.render();");
+      await new Promise((r) => setTimeout(r, 60));
       await win.webContents.executeJavaScript(
         "new Promise(resolve=>requestAnimationFrame(resolve))",
       );
+      const pixels = await evaluate(
+        "g.render();return g.canvas.toDataURL('image/png').split(',')[1];",
+      );
       fs.writeFileSync(
         path.join(outputDirectory, name + ".png"),
-        (await win.webContents.capturePage()).toPNG(),
+        Buffer.from(pixels, "base64"),
       );
     };
     await snapshot("main-menu");
@@ -105,6 +111,7 @@ app.whenReady().then(async () => {
       [1000, 600],
     ]) {
       win.setContentSize(...size);
+      await new Promise((r) => setTimeout(r, 100));
       await evaluate("g.resize();g.goToTitle();g.render();");
       for (const mode of ["pvp", "pve", "practice"]) {
         await evaluate("g.goToTitle();g.render();");
@@ -116,12 +123,14 @@ app.whenReady().then(async () => {
           clickCount: 1,
           ...p,
         });
+        await new Promise((r) => setTimeout(r, 60));
         win.webContents.sendInputEvent({
           type: "mouseUp",
           button: "left",
           clickCount: 1,
           ...p,
         });
+        await new Promise((r) => setTimeout(r, 60));
         assert.deepEqual(await evaluate("return [g.game.state,g.game.mode];"), [
           "select",
           mode,
@@ -135,12 +144,14 @@ app.whenReady().then(async () => {
           clickCount: 1,
           ...back,
         });
+        await new Promise((r) => setTimeout(r, 60));
         win.webContents.sendInputEvent({
           type: "mouseUp",
           button: "left",
           clickCount: 1,
           ...back,
         });
+        await new Promise((r) => setTimeout(r, 60));
         assert.equal(
           await evaluate("return g.game.state;"),
           "title",
@@ -205,6 +216,16 @@ app.whenReady().then(async () => {
       `import('./game.js').then(({game:g})=>{g.startMatch();g.game.state='fighting';g.render();})`,
     );
     await snapshot("fight");
+    await evaluate(
+      "g.game.mode='pve';g.game.state='select';g.game.infoPanel={side:'P1',charId:'japan'};g.render();",
+    );
+    await snapshot("selection-skills");
+    await evaluate(
+      "g.game.infoPanel=null;g.game.mode='practice';g.game.state='select';g.render();",
+    );
+    await snapshot("practice-selection");
+    await evaluate("g.startMatch();g.game.state='fighting';g.render();");
+    await snapshot("practice");
     if (errors.length) throw Error(errors.join("\n"));
     console.log(
       JSON.stringify({
