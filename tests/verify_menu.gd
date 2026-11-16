@@ -16,6 +16,13 @@ func _verify() -> void:
     assert(menu.buttons[0].texture_normal != null, "Missing PVP image")
     assert(menu.buttons[1].texture_normal != null, "Missing PVE image")
     assert(menu.buttons[2].texture_normal != null, "Missing practice image")
+    assert(menu.background.material is ShaderMaterial, "Spotlight shader is missing")
+    menu.flicker_steps = [2, 2]
+    menu.flicker_timers = [0.0, 0.0]
+    menu._update_spotlights(0.01)
+    assert(menu.spotlight_powers[0] < 0.5 and menu.spotlight_powers[1] < 0.5, "Spotlights did not dim")
+    menu._update_spotlights(0.2)
+    assert(menu.spotlight_powers[0] == 1.0 and menu.spotlight_powers[1] == 1.0, "Spotlights did not recover")
     assert(menu.background.size.x >= menu.size.x and menu.background.size.y >= menu.size.y, "Background does not cover window")
     Input.warp_mouse(Vector2(50, 360))
     await create_timer(0.3).timeout
@@ -45,4 +52,13 @@ func _verify() -> void:
     var saved := image.save_png(destination)
     assert(saved == OK, "Could not save menu screenshot")
     print("MENU_SCREENSHOT_OK ", destination)
+    menu.spotlight_powers = [0.0, 0.0]
+    menu.flicker_timers = [5.0, 5.0]
+    await RenderingServer.frame_post_draw
+    var dim_image := get_root().get_texture().get_image()
+    assert(dim_image.get_pixel(300, 45).b < image.get_pixel(300, 45).b, "Blue spotlight did not visibly dim")
+    assert(dim_image.get_pixel(945, 45).r < image.get_pixel(945, 45).r, "Red spotlight did not visibly dim")
+    var dim_destination := ProjectSettings.globalize_path("res://verification/menu-lights-dim.png")
+    assert(dim_image.save_png(dim_destination) == OK, "Could not save dimmed screenshot")
+    print("MENU_DIM_SCREENSHOT_OK ", dim_destination)
     quit()

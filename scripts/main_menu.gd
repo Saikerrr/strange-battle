@@ -8,6 +8,7 @@ const PVP := preload("res://assets/menu/pvp.png")
 const PVE := preload("res://assets/menu/pve.png")
 const PRACTICE := preload("res://assets/menu/practice.png")
 const GLOW_SHADER := preload("res://shaders/soft_glow.gdshader")
+const SPOTLIGHT_SHADER := preload("res://shaders/menu_spotlights.gdshader")
 
 var background: TextureRect
 var content: Control
@@ -16,6 +17,11 @@ var buttons: Array[TextureButton] = []
 var glows: Array[ColorRect] = []
 var elapsed := 0.0
 var pointer_offset := Vector2.ZERO
+var spotlight_material: ShaderMaterial
+var flicker_random := RandomNumberGenerator.new()
+var flicker_timers := [6.0, 9.0]
+var flicker_steps := [0, 0]
+var spotlight_powers := [1.0, 1.0]
 
 
 func _ready() -> void:
@@ -25,6 +31,9 @@ func _ready() -> void:
     background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    spotlight_material = ShaderMaterial.new()
+    spotlight_material.shader = SPOTLIGHT_SHADER
+    background.material = spotlight_material
     add_child(background)
 
     content = Control.new()
@@ -32,8 +41,8 @@ func _ready() -> void:
     content.mouse_filter = Control.MOUSE_FILTER_IGNORE
     add_child(content)
 
-    _make_light(Vector2(340, -150), Vector2(520, 610), Color(0.89, 0.93, 1.0, 0.12))
-    _make_light(Vector2(740, -150), Vector2(520, 610), Color(0.89, 0.93, 1.0, 0.12))
+    flicker_random.randomize()
+    flicker_timers = [flicker_random.randf_range(4.0, 8.0), flicker_random.randf_range(6.0, 11.0)]
 
     logo = TextureRect.new()
     logo.texture = LOGO
@@ -98,6 +107,7 @@ func _layout() -> void:
 
 func _process(delta: float) -> void:
     elapsed += delta
+    _update_spotlights(delta)
     var position_in_window := get_viewport().get_mouse_position()
     var normalized := Vector2(
         clampf(position_in_window.x / maxf(size.x, 1.0) * 2.0 - 1.0, -1.0, 1.0),
@@ -111,6 +121,23 @@ func _process(delta: float) -> void:
         var current: float = glow_material.get_shader_parameter("intensity")
         var target := 1.65 if buttons[index].is_hovered() else 1.0
         glow_material.set_shader_parameter("intensity", lerpf(current, target, minf(1.0, delta * 8.0)))
+
+
+func _update_spotlights(delta: float) -> void:
+    for index in range(2):
+        flicker_timers[index] -= delta
+        if flicker_timers[index] <= 0.0:
+            if flicker_steps[index] == 0:
+                flicker_steps[index] = flicker_random.randi_range(2, 4) * 2
+            flicker_steps[index] -= 1
+            if flicker_steps[index] > 0:
+                spotlight_powers[index] = flicker_random.randf_range(0.08, 0.32) if flicker_steps[index] % 2 == 1 else 1.0
+                flicker_timers[index] = flicker_random.randf_range(0.06, 0.16)
+            else:
+                spotlight_powers[index] = 1.0
+                flicker_timers[index] = flicker_random.randf_range(6.0, 13.0)
+    spotlight_material.set_shader_parameter("blue_power", spotlight_powers[0])
+    spotlight_material.set_shader_parameter("red_power", spotlight_powers[1])
 
 
 func _on_button_hover(index: int, hovered: bool) -> void:
