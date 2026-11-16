@@ -13,6 +13,9 @@ ASSETS = ROOT / 'assets'
 OUT = ROOT / 'blender'
 FPS = 30
 STRIDE = 216
+ARM_UPPER = 59
+ARM_FORE = 56
+DEPTH_STEP = .003
 
 def mix(a, b, t):
     return a + (b-a)*t
@@ -41,7 +44,7 @@ def foot(phase):
     if phase < .5:
         return (54-STRIDE*phase,-30), True
     t = (phase-.5)*2
-    return (-54+108*smooth(t),-30-58*math.sin(math.pi*t)), False
+    return (-54+108*smooth(t),-30-18*math.sin(math.pi*t)**2), False
 
 def pulse(t, begin, peak, finish):
     if t < begin or t > finish:return 0
@@ -53,21 +56,32 @@ def pose(clip, t):
     hips = (0,-145+bob)
     lean = 0
     ankles = [(-24,-30),(25,-30)]
-    hands = [(-33,-166+bob),(40,-161+bob)]
+    hands = [(-20,-123+bob),(16,-123+bob)]
     feet_angles=[0,0]
     tail = 0
+    pockets = 1
     if clip=='run':
         p=t%1
-        bob = 5*math.cos(p*math.tau*2)
-        hips=(0,-145+bob)
-        lean=18
+        lean=5
         near,near_ground=foot(p)
         far,far_ground=foot(p+.5)
         ankles=[far,near]
+        # Raise the pelvis to extend the support leg, but never ask IK to
+        # reach beyond the limb: otherwise the planted sole would lift/slide.
+        hip_y=max([-160]+[ankle[1]-math.sqrt(max(1,134**2-(ankle[0]-hip_x)**2)) for ankle,hip_x in zip(ankles,[-13,14])])
+        hips=(0,hip_y)
+        bob=hip_y+145
         feet_angles=[0 if far_ground else -.25*math.sin((p+.5)%1*math.tau),0 if near_ground else -.25*math.sin(p*math.tau)]
-        swing=math.sin(p*math.tau)
-        hands=[(-62-18*swing,-202+bob),(-35+24*swing,-184+bob)]
-        tail=-18+7*math.sin(p*math.tau*2+.5)
+        hands=[(-20,hip_y+22),(16,hip_y+22)]
+        tail=-5+3*math.sin(p*math.tau*2+.5)
+    elif clip=='jump':
+        tuck=math.sin(math.pi*t)**2
+        bob=-3*tuck
+        hips=(0,-145+bob)
+        lean=4*tuck
+        ankles=[(-24,-30-9*tuck),(25,-30-12*tuck)]
+        hands=[(-20,-123+bob),(16,-123+bob)]
+        tail=-8*tuck
     elif clip in ['jab','kick','heavy']:
         power=pulse(t, .05, .34 if clip=='jab' else .52, .94)
         wind=pulse(t,0,.18 if clip=='jab' else .30,.50)
@@ -87,7 +101,8 @@ def pose(clip, t):
             feet_angles[1]=-.13*power
             lean=-17*power
         guard=min(smooth(t/(.14 if clip=='jab' else .20)),1-smooth((t-.82)/.18))
-        hands=[point((-33,-166),hands[0],guard),point((40,-161),hands[1],guard)]
+        hands=[point((-20,-123),hands[0],guard),point((16,-123),hands[1],guard)]
+        pockets=1-guard
     chest=(lean,-240+bob)
     head_top=(lean+3,-333+bob)
     head_bottom=(lean+4,-241+bob)
@@ -99,8 +114,10 @@ def pose(clip, t):
     }
     for i,side in enumerate(['far','near']):
         shoulder=(lean+(-27 if i==0 else 28),-219+bob)
-        bend=(1 if i==1 else -1) if clip=='idle' else 1 if clip=='run' else (-1 if hands[i][0]>=shoulder[0] else 1)
-        elbow,hand=ik(shoulder,hands[i],55,52,bend)
+        bend=-1 if hands[i][0]>=shoulder[0] else 1
+        elbow,hand=ik(shoulder,hands[i],ARM_UPPER,ARM_FORE,bend)
+        pocket_elbow,_=ik(shoulder,hands[i],ARM_UPPER,ARM_FORE,-1 if i==0 else 1)
+        elbow=point(elbow,pocket_elbow,pockets)
         joints[side+'_upper']=(shoulder,elbow)
         joints[side+'_fore']=(elbow,hand)
         hip=(hips[0]+(-13 if i==0 else 14),hips[1])
@@ -109,6 +126,7 @@ def pose(clip, t):
         joints[side+'_shin']=(knee,ankle)
         a=feet_angles[i]
         joints[side+'_boot']=(ankle,(ankle[0]-math.sin(a)*30,ankle[1]+math.cos(a)*30))
+    joints['_pockets']=pockets
     return joints
 
 # Four by three source atlas. PNG stays intact; these are mesh UV rectangles.
@@ -207,8 +225,8 @@ camera_data=bpy.data.cameras.new('Orthographic_2D');camera=bpy.data.objects.new(
 camera.location=(0,-10,1.74);camera.rotation_euler=(Vector((0,0,1.74))-camera.location).to_track_quat('-Z','Y').to_euler();camera.data.type='ORTHO';camera.data.ortho_scale=5.12;scene.camera=camera
 image.pack()
 
-clips={'idle':(36,True),'run':(18,True),'jab':(13,False),'kick':(19,False),'heavy':(28,False)}
-data={'texture':'russia-parts.png','textureSize':[width,height],'stride':STRIDE,'height':340,'fps':FPS,'parts':parts,'clips':{},'source':'Blender 5.3 evaluated pose bones'}
+clips={'idle':(36,True),'run':(18,True),'jump':(24,False),'jab':(13,False),'kick':(19,False),'heavy':(28,False)}
+data={'texture':'russia-parts.png','textureSize':[width,height],'stride':STRIDE,'height':340,'fps':FPS,'depthStep':DEPTH_STEP,'parts':parts,'clips':{},'source':'Blender 5.3 evaluated pose bones'}
 order=['torso','tail_back','tail_front','far_thigh','far_shin','far_boot','near_thigh','near_shin','near_boot','far_upper','far_fore','near_upper','near_fore','head']
 for clip,(count,loop) in clips.items():
     rig.animation_data_clear()
@@ -218,10 +236,14 @@ for clip,(count,loop) in clips.items():
         scene.frame_set(i+1);points=pose(clip,i/count)
         for name in order:
             pb=rig.pose.bones[name];ra,rb=rest[name];a,b=points[name]
+            part=next(p for p in parts if p['name']==name)
+            pocket_layer=-3 if name=='far_fore' else -2 if name=='near_fore' else part['layer']
+            offset=(part['layer']-pocket_layer)*DEPTH_STEP*points['_pockets']
             delta=math.atan2(b[1]-a[1],b[0]-a[0])-math.atan2(rb[1]-ra[1],rb[0]-ra[0])
             scale=math.hypot(b[0]-a[0],b[1]-a[1])/math.hypot(rb[0]-ra[0],rb[1]-ra[1])
             pb.rotation_mode='QUATERNION'
-            pb.matrix=Matrix.Translation(xyz(a))@Matrix.Rotation(delta,4,'Y')@Matrix.Translation(-xyz(ra))@armature.bones[name].matrix_local@Matrix.Diagonal((1,scale,1,1))
+            origin=xyz(a);origin.y=offset
+            pb.matrix=Matrix.Translation(origin)@Matrix.Rotation(delta,4,'Y')@Matrix.Translation(-xyz(ra))@armature.bones[name].matrix_local@Matrix.Diagonal((1,scale,1,1))
             bpy.context.view_layer.update()
             pb.keyframe_insert(data_path='location',frame=i+1);pb.keyframe_insert(data_path='rotation_quaternion',frame=i+1);pb.keyframe_insert(data_path='scale',frame=i+1)
         bpy.context.view_layer.update()
@@ -229,7 +251,7 @@ for clip,(count,loop) in clips.items():
         for p in parts:
             pb=rig.pose.bones[p['name']]
             a=pb.matrix.translation;b=pb.matrix@Vector((0,armature.bones[p['name']].length,0))
-            frame.append([round(a.x*100,4),round(-a.z*100,4),round(b.x*100,4),round(-b.z*100,4)])
+            frame.append([round(a.x*100,4),round(-a.z*100,4),round(b.x*100,4),round(-b.z*100,4),round(p['layer']-a.y/DEPTH_STEP,4)])
         frames.append(frame)
     action.use_fake_user=True
     action['clip_duration']=count/FPS;action['loop']=loop
@@ -237,10 +259,10 @@ for clip,(count,loop) in clips.items():
 
 with (ASSETS/'russia-rig.json').open('w',encoding='utf-8') as f:json.dump(data,f,separators=(',',':'))
 rig.animation_data.action=bpy.data.actions['idle'];scene.frame_start=1;scene.frame_end=36;scene.frame_set(1)
-rig['instructions']='Actions: idle, run, jab, kick, heavy. Texture is packed. Camera renders on transparent background.'
+rig['instructions']='Actions: idle, run, jump, jab, kick, heavy. Forearm bone depth hides hands in pockets. Texture is packed.'
 rig['parts_json']=json.dumps(parts);rig['stride']=STRIDE
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'russia-2d.blend'))
-for clip,frame in [('idle',1),('run',5),('jab',5),('kick',11),('heavy',15)]:
+for clip,frame in [('idle',1),('run',5),('jump',13),('jab',5),('kick',11),('heavy',15)]:
     rig.animation_data.action=bpy.data.actions[clip];scene.frame_set(frame)
     scene.render.filepath=str(OUT/(clip+'-preview.png'));bpy.ops.render.render(write_still=True)
 print('RUSSIA_EXPORT_OK',len(parts),sum(len(c['frames']) for c in data['clips'].values()))

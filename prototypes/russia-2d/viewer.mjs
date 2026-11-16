@@ -13,7 +13,7 @@ import { drawRig } from "./rig-renderer.mjs";
 
 const canvas = document.getElementById("preview"),
   ctx = canvas.getContext("2d");
-const controlled = new Set(["KeyA", "KeyD", "KeyF", "KeyG", "KeyH"]);
+const controlled = new Set(["KeyA", "KeyD", "KeyW", "KeyF", "KeyG", "KeyH"]);
 try {
   const rig = await fetch(
     new URL("./assets/russia-rig.json", import.meta.url),
@@ -70,7 +70,7 @@ try {
       rig,
       pose,
       state.player.x,
-      FLOOR,
+      state.player.y,
       state.player.facing,
     );
     const a = state.player.attack;
@@ -109,7 +109,7 @@ try {
     ctx.fillStyle = "#b4bfc7";
     ctx.textAlign = "center";
     ctx.fillText(
-      "A / D — бег     F — быстрый удар     G — удар ногой     H — сильный удар",
+      "A / D — движение     W — прыжок     F — быстрый удар     G — удар ногой     H — сильный удар",
       800,
       850,
     );

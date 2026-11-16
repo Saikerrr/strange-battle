@@ -1,3 +1,4 @@
+import { GRAVITY, JUMP_VELOCITY } from "../../src/engine/config.js";
 export const FLOOR = 760;
 export const SPEED = 360;
 export const STRIDE = 216;
@@ -11,6 +12,13 @@ export function createState() {
   return {
     player: {
       x: 430,
+      y: FLOOR,
+      vy: 0,
+      grounded: true,
+      jumpTime: 0,
+      jumpFromPose: null,
+      landingFromPose: null,
+      landingTime: 0,
       facing: 1,
       vx: 0,
       distance: 0,
@@ -27,6 +35,16 @@ export function createState() {
 export function press(state, key, rig) {
   if (state.keys.has(key)) return false;
   state.keys.add(key);
+  if (key === "KeyW") {
+    const p = state.player;
+    if (!p.grounded || p.attack) return false;
+    p.jumpFromPose = currentPose(state, rig);
+    p.grounded = false;
+    p.jumpTime = 0;
+    p.vy = JUMP_VELOCITY;
+    p.landingTime = 0;
+    return true;
+  }
   const attack = ATTACKS[key];
   if (!attack || state.player.attack) return false;
   state.player.attack = {
@@ -71,15 +89,38 @@ export function currentPose(state, rig) {
       ),
     );
   }
+  if (!p.grounded) {
+    const target = sample(
+      rig,
+      "jump",
+      (p.jumpTime / ((-2 * JUMP_VELOCITY) / GRAVITY)) * rig.clips.jump.duration,
+    );
+    const weight = Math.min(1, p.jumpTime / 0.08);
+    return target.map((part, i) =>
+      part.map(
+        (v, j) => p.jumpFromPose[i][j] + (v - p.jumpFromPose[i][j]) * weight,
+      ),
+    );
+  }
   const idle = sample(rig, "idle", p.idleTime);
   const run = sample(
     rig,
     "run",
     (p.distance / rig.stride) * rig.clips.run.duration,
   );
-  return idle.map((part, i) =>
+  const ground = idle.map((part, i) =>
     part.map((v, j) => v + (run[i][j] - v) * p.runWeight),
   );
+  if (p.landingTime > 0) {
+    const weight = 1 - p.landingTime / 0.1;
+    return ground.map((part, i) =>
+      part.map(
+        (v, j) =>
+          p.landingFromPose[i][j] + (v - p.landingFromPose[i][j]) * weight,
+      ),
+    );
+  }
+  return ground;
 }
 export function hitPoint(state, rig, pose = currentPose(state, rig)) {
   const name = state.player.attack?.clip === "kick" ? "near_boot" : "near_fore";
@@ -87,7 +128,7 @@ export function hitPoint(state, rig, pose = currentPose(state, rig)) {
     part = pose[index];
   return {
     x: state.player.x + part[2] * state.player.facing,
-    y: FLOOR + part[3],
+    y: state.player.y + part[3],
   };
 }
 function overlapsDummy(point, dummy, radius) {
@@ -103,6 +144,19 @@ export function update(state, rig, dt) {
   const p = state.player;
   state.time += dt;
   p.idleTime += dt;
+  p.landingTime = Math.max(0, p.landingTime - dt);
+  if (!p.grounded) {
+    p.jumpTime += dt;
+    p.vy += GRAVITY * dt;
+    p.y += p.vy * dt;
+    if (p.y >= FLOOR && p.vy > 0) {
+      p.landingFromPose = currentPose(state, rig);
+      p.landingTime = 0.1;
+      p.y = FLOOR;
+      p.vy = 0;
+      p.grounded = true;
+    }
+  }
   state.dummy.reaction = Math.max(0, state.dummy.reaction - dt * 2.8);
   state.dummy.flash = Math.max(0, state.dummy.flash - dt);
   for (const particle of state.particles) {

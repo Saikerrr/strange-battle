@@ -68,6 +68,23 @@ app.whenReady().then(async () => {
     assert.equal(await evaluate("return g.state.keys.size;"), 0);
     assert.equal(await evaluate("return g.state.player.vx;"), 0);
     await key("keyUp", "A");
+    await key("keyDown", "W");
+    await evaluate("g.step(.2);");
+    assert.equal(await evaluate("return g.state.player.grounded;"), false);
+    assert.ok(await evaluate("return g.state.player.y<660;"));
+    await snapshot("russia-prototype-jump");
+    await key("keyDown", "W");
+    await evaluate("g.step(1.2);");
+    assert.equal(await evaluate("return g.state.player.y;"), 760);
+    assert.equal(await evaluate("return g.state.player.grounded;"), true);
+    await evaluate("g.step(.2);");
+    assert.equal(await evaluate("return g.state.player.grounded;"), true);
+    await key("keyUp", "W");
+    await key("keyDown", "W");
+    await evaluate("g.step(.1);");
+    assert.equal(await evaluate("return g.state.player.grounded;"), false);
+    await key("keyUp", "W");
+    await evaluate("g.step(1.2);");
     for (const [keyCode, name, time] of [
       ["F", "jab", 0.15],
       ["G", "kick", 0.33],
@@ -102,9 +119,9 @@ app.whenReady().then(async () => {
     }
     const contact = await win.webContents.executeJavaScript(`(async()=>{
       const g=window.russiaPrototype,{sample}=await import('./combat.mjs'),{drawRig}=await import('./rig-renderer.mjs');
-      const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=580;const c=canvas.getContext('2d');c.fillStyle='#242b32';c.fillRect(0,0,1600,580);
-      for(let i=0;i<16;i++) {
-        const clip=i<8?'run':i<12?'jab':'heavy',phase=i<8?i/8:(clip==='heavy'?[0,.30,.52,.85]:[0,.18,.34,.85])[i%4];const x=i%8*200+100,y=i<8?260:540;
+      const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=870;const c=canvas.getContext('2d');c.fillStyle='#242b32';c.fillRect(0,0,1600,870);
+      for(let i=0;i<24;i++) {
+        const clip=i<8?'run':i<12?'jab':i<16?'heavy':'jump',phase=i<8?i/8:i>=16?(i-16)/7:(clip==='heavy'?[0,.30,.52,.85]:[0,.18,.34,.85])[i%4];const x=i%8*200+100,y=Math.floor(i/8)*290+260;
         c.strokeStyle='#53606a';c.beginPath();c.moveTo(x-95,y);c.lineTo(x+95,y);c.stroke();
         c.save();c.translate(x,y);c.scale(.57,.57);drawRig(c,g.texture,g.rig,sample(g.rig,clip,phase*g.rig.clips[clip].duration),0,0,1);c.restore();
         c.fillStyle='#cbd0d6';c.font='14px Arial';c.textAlign='center';c.fillText(clip+' '+phase.toFixed(2),x,y+22);
@@ -118,7 +135,7 @@ app.whenReady().then(async () => {
       const g=window.russiaPrototype,c=document.getElementById('preview'),stream=c.captureStream(0),track=stream.getVideoTracks()[0],chunks=[];
       const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'});recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
       const done=new Promise(r=>recorder.onstop=r);g.state.player.x=360;g.state.player.facing=1;g.state.player.attack=null;g.state.keys.clear();g.press('KeyD');recorder.start();
-      for(let i=0;i<150;i++){if(i===75)g.release('KeyD');if(i===90){g.state.player.x=1030;g.press('KeyH');}g.step(1/30);track.requestFrame();await new Promise(r=>setTimeout(r,34));}
+      for(let i=0;i<150;i++){if(i===25)g.press('KeyW');if(i===26)g.release('KeyW');if(i===75)g.release('KeyD');if(i===90){g.state.player.x=1030;g.press('KeyH');}g.step(1/30);track.requestFrame();await new Promise(r=>setTimeout(r,34));}
       recorder.stop();await done;track.stop();const bytes=new Uint8Array(await new Blob(chunks).arrayBuffer());let str='';for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);
     })()`);
     fs.writeFileSync(
@@ -140,8 +157,8 @@ app.whenReady().then(async () => {
     console.log(
       JSON.stringify({
         parts: 14,
-        clips: 5,
-        nativeInput: "A/D/F/G/H, blur, hold, edges",
+        clips: 6,
+        nativeInput: "A/D/W/F/G/H, jump/landing/repress, blur, hold, edges",
         hits: await evaluate("return g.state.dummy.hits;"),
         video: "russia-animation-preview.webm",
         errors,

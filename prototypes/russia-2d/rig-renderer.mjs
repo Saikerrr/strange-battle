@@ -2,7 +2,13 @@ export function drawRig(ctx, texture, rig, pose, x, y, facing = 1) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(facing, 1);
-  for (let i = 0; i < rig.parts.length; i++) {
+  const order = rig.parts
+    .map((_, i) => i)
+    .sort(
+      (a, b) =>
+        (pose[a][4] ?? rig.parts[a].layer) - (pose[b][4] ?? rig.parts[b].layer),
+    );
+  for (const i of order) {
     const part = rig.parts[i],
       [ax, ay, bx, by] = pose[i];
     const [sx, sy, sw, sh] = part.uv,

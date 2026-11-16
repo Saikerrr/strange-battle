@@ -11,9 +11,9 @@ def export():
     scene=bpy.context.scene
     parts=json.loads(rig['parts_json'])
     fps=scene.render.fps/scene.render.fps_base
-    data={'texture':'russia-parts.png','textureSize':list(bpy.data.images['russia-parts.png'].size),'stride':rig['stride'],'height':340,'fps':fps,'parts':parts,'clips':{},'source':'Blender 5.3 evaluated pose bones'}
+    data={'texture':'russia-parts.png','textureSize':list(bpy.data.images['russia-parts.png'].size),'stride':rig['stride'],'height':340,'fps':fps,'depthStep':.003,'parts':parts,'clips':{},'source':'Blender 5.3 evaluated pose bones'}
     original=rig.animation_data.action
-    for name in ['idle','run','jab','kick','heavy']:
+    for name in ['idle','run','jump','jab','kick','heavy']:
         action=bpy.data.actions[name];rig.animation_data.action=action
         count=round(action['clip_duration']*fps)
         frames=[]
@@ -23,7 +23,7 @@ def export():
             for part in parts:
                 bone=rig.pose.bones[part['name']]
                 a=bone.matrix.translation;b=bone.matrix@Vector((0,rig.data.bones[part['name']].length,0))
-                pose.append([round(a.x*100,4),round(-a.z*100,4),round(b.x*100,4),round(-b.z*100,4)])
+                pose.append([round(a.x*100,4),round(-a.z*100,4),round(b.x*100,4),round(-b.z*100,4),round(part['layer']-a.y/.003,4)])
             frames.append(pose)
         data['clips'][name]={'duration':count/fps,'loop':bool(action['loop']),'frames':frames}
     rig.animation_data.action=original
