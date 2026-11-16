@@ -5,6 +5,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "preview:russia": "electron prototypes/russia-2d/main.cjs",
     "test": "node --test tests/*.test.mjs",
     "test:electron": "electron scripts/test-electron.cjs",
     "format:check": "prettier --check src game.js main.js tests scripts/test-electron.cjs"

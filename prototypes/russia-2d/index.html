@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Strange Battle — две модели России</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #11151a;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      canvas {
+        width: min(100vw, calc(100vh * 16 / 9));
+        height: auto;
+        display: block;
+      }
+      #error {
+        color: #f8d4d4;
+        font: 18px sans-serif;
+        max-width: 700px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas
+      id="preview"
+      width="1600"
+      height="900"
+      aria-label="Две модели России на поле с неподвижным манекеном"
+    ></canvas>
+    <p id="error" hidden></p>
+    <script type="module" src="./viewer.mjs"></script>
+  </body>
+</html>
