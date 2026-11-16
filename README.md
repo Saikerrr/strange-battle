@@ -1,5 +1,7 @@
 # Strange Battle в Godot: этап 1, главное меню
 
+Для запуска игры дважды щёлкни `Играть.cmd` в этой папке.
+
 Открой `C:\vbc\godot\StrangeBattle\project.godot` в Godot 4.7.2 или запусти:
 
 `C:\vbc\godot\editor\Godot_v4.7.2-stable_win64.exe --path C:\vbc\godot\StrangeBattle`
