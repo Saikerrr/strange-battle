@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="Strange Battle — Godot"
-run/main_scene="res://scenes/session.tscn"
+config/name="Strange Battle · Stick Fight"
+run/main_scene="res://scenes/stick_fight.tscn"
 config/features=PackedStringArray("4.7")
 
 [display]
