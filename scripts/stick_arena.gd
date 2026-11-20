@@ -1,16 +1,26 @@
 extends Node2D
 
 const FIGHTER := preload("res://scripts/stick_fighter.gd")
+const ABILITIES := preload("res://scripts/stick_abilities.gd")
 const FLOOR := 680.0
+const WIDTH := 2560.0
+const PLATFORMS := [
+    Vector3(290, 545, 575), Vector3(648, 413, 889), Vector3(1000, 525, 1208),
+    Vector3(1210, 392, 1350), Vector3(1352, 525, 1560), Vector3(1671, 413, 1912),
+    Vector3(1985, 545, 2270),
+]
 const BLUE := Color("#62e3f5")
 const ORANGE := Color("#ff9368")
 const BINDINGS := [
-    [[KEY_A], [KEY_D], [KEY_W], [KEY_S], [KEY_F], [KEY_G], [KEY_H], [KEY_SHIFT]],
-    [[KEY_LEFT], [KEY_RIGHT], [KEY_UP], [KEY_DOWN], [KEY_KP_4, KEY_COMMA], [KEY_KP_5, KEY_PERIOD], [KEY_KP_6, KEY_SLASH], [KEY_SHIFT]],
+    [[KEY_A], [KEY_D], [KEY_W], [KEY_S], [KEY_F], [KEY_G], [KEY_H], [KEY_SHIFT], [KEY_Z], [KEY_X], [KEY_C]],
+    [[KEY_LEFT], [KEY_RIGHT], [KEY_UP], [KEY_DOWN], [KEY_KP_4, KEY_COMMA], [KEY_KP_5, KEY_PERIOD], [KEY_KP_6, KEY_SLASH], [KEY_SHIFT], [KEY_KP_1, KEY_1], [KEY_KP_2, KEY_2], [KEY_KP_3, KEY_3]],
 ]
 
 var fighters: Array = []
 var world: Node2D
+var camera: Camera2D
+var abilities: Node2D
+var skill_labels: Array[Label] = []
 var held: Array[Dictionary] = [{}, {}]
 var tapped: Array[Dictionary] = [{}, {}]
 var screen: CanvasLayer
@@ -34,11 +44,18 @@ var impact: AudioStreamPlayer
 func _ready() -> void:
     world = Node2D.new()
     add_child(world)
+    camera = Camera2D.new()
+    add_child(camera)
+    camera.make_current()
+    abilities = ABILITIES.new()
+    abilities.arena = self
     for color in [BLUE, ORANGE]:
         var fighter := FIGHTER.new()
         fighter.tint = color
+        fighter.variant = fighters.size()
         world.add_child(fighter)
         fighters.append(fighter)
+    world.add_child(abilities)
     create_hud()
     impact = AudioStreamPlayer.new()
     impact.max_polyphony = 4
@@ -48,12 +65,16 @@ func _ready() -> void:
     reset()
 
 func reset() -> void:
-    fighters[0].reset(584, 1)
-    fighters[1].reset(1016, -1)
+    fighters[0].reset(1064, 1)
+    fighters[1].reset(1496, -1)
     held = [{}, {}]
     tapped = [{}, {}]
     particles.clear()
     world.position = Vector2.ZERO
+    camera.position = Vector2(WIDTH * 0.5, 450)
+    camera.zoom = Vector2.ONE
+    camera.offset = Vector2.ZERO
+    abilities.clear()
     winner = -1
     paused = false
     ready_time = 0.75
@@ -116,6 +137,8 @@ func player_input(side: int) -> Dictionary:
     for attack in range(3):
         if tapped[side].has(attack + 4):
             input.attack = attack
+        if tapped[side].has(attack + 8):
+            input.skill = attack
     return input
 
 func cpu_input(dt: float) -> Dictionary:
@@ -127,7 +150,7 @@ func cpu_input(dt: float) -> Dictionary:
     bot_clock -= dt
     if bot_clock <= 0:
         bot_clock = randf_range(0.14, 0.24)
-        var danger: bool = rival.attack >= 0 and distance < 162 and absf(offset.y) < 55
+        var danger: bool = (rival.attack >= 0 or rival.cast_time > 0) and distance < 170 and absf(offset.y) < 64
         bot_guard = danger and randf() < 0.59
         bot_walk = signf(offset.x) if distance > 122 else (-signf(offset.x) if distance < 76 and randf() < 0.45 else 0.0)
         if not bot_guard and distance < 148 and absf(offset.y) < 74 and randf() < 0.69:
@@ -136,6 +159,15 @@ func cpu_input(dt: float) -> Dictionary:
             action.dash = true
         if distance < 172 and offset.y < -75 and randf() < 0.15:
             action.jump = true
+        if cpu.grounded() and offset.y > 85 and cpu.floor_y < FLOOR and distance < 195:
+            action.drop = true
+        if not bot_guard and absf(offset.y) < 84 and randf() < 0.32:
+            if distance > 180 and distance < 570 and cpu.cooldowns[0] <= 0:
+                action.skill = 0
+            elif distance > 132 and distance < 260 and cpu.grounded() and cpu.cooldowns[1] <= 0:
+                action.skill = 1
+            elif distance < 207 and cpu.cooldowns[2] <= 0:
+                action.skill = 2
     action.move = bot_walk
     action.guard = bot_guard
     return action
@@ -152,8 +184,14 @@ func _physics_process(dt: float) -> void:
     elif hitstop > 0:
         hitstop = maxf(hitstop - dt, 0)
     elif winner < 0:
-        left.step(dt, player_input(0), right.position.x)
-        right.step(dt, cpu_input(dt) if versus_bot else player_input(1), left.position.x)
+        var left_input := player_input(0)
+        var right_input := cpu_input(dt) if versus_bot else player_input(1)
+        if left_input.has("skill") and not left_input.guard:
+            abilities.launch(left, left_input.skill)
+        if right_input.has("skill") and not right_input.guard:
+            abilities.launch(right, right_input.skill)
+        left.step(dt, left_input, right.position.x, PLATFORMS)
+        right.step(dt, right_input, left.position.x, PLATFORMS)
         tapped = [{}, {}]
         separate()
         var first: Dictionary = left.hit_scan(right)
@@ -166,15 +204,26 @@ func _physics_process(dt: float) -> void:
             right.contact = true
             left.receive(second)
             feedback(second, ORANGE)
+        abilities.step(dt)
         if minf(left.hp, right.hp) <= 0.0:
             winner = 0 if left.hp == right.hp else (1 if left.hp > right.hp else 2)
             if winner > 0:
                 fighters[winner - 1].victory = true
     else:
         for f in fighters:
-            f.step(dt, {}, fighters[1 if f == left else 0].position.x)
+            f.step(dt, {}, fighters[1 if f == left else 0].position.x, PLATFORMS)
+        abilities.clear()
     shake = move_toward(shake, 0.0, dt * 60.0)
-    world.position = Vector2(sin(age * 129.0), cos(age * 142.0)) * shake
+    var separation: float = absf(left.position.x - right.position.x)
+    var zoom_level := clampf(1530.0 / (separation + 390.0), 0.60, 1.0)
+    camera.zoom = camera.zoom.lerp(Vector2.ONE * zoom_level, minf(dt * 4.6, 1))
+    var half_frame := minf(800.0 / camera.zoom.x, WIDTH * 0.5)
+    var center := clampf((left.position.x + right.position.x) * 0.5, half_frame, WIDTH - half_frame)
+    camera.position.x = lerpf(camera.position.x, center, minf(dt * 7, 1))
+    var highest := minf(left.position.y, right.position.y)
+    var camera_y := clampf(highest + 36.0, 325.0, 450.0)
+    camera.position.y = lerpf(camera.position.y, camera_y, minf(dt * 5.5, 1))
+    camera.offset = Vector2(sin(age * 129.0), cos(age * 142.0)) * shake
     for spark in particles:
         spark.life -= dt
         spark.p += spark.v * dt
@@ -190,7 +239,7 @@ func separate() -> void:
     if absf(gap.y) >= 86 or absf(gap.x) >= 89:
         return
     var direction := 1.0 if gap.x >= 0 else -1.0
-    var center := clampf((right.position.x + left.position.x) * 0.5, 183, 1417)
+    var center := clampf((right.position.x + left.position.x) * 0.5, FIGHTER.MIN_X + 45, FIGHTER.MAX_X - 45)
     left.position.x = center - direction * 44.5
     right.position.x = center + direction * 44.5
 
@@ -236,8 +285,8 @@ func create_hud() -> void:
     ui = Control.new()
     ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
     screen.add_child(ui)
-    hud_label("P1", 27, BLUE, Rect2(94, 54, 600, 34), HORIZONTAL_ALIGNMENT_LEFT)
-    hud_label("P2", 27, ORANGE, Rect2(906, 54, 600, 34), HORIZONTAL_ALIGNMENT_RIGHT)
+    hud_label("ВОЛЬТ   ·   P1", 27, BLUE, Rect2(94, 54, 600, 34), HORIZONTAL_ALIGNMENT_LEFT)
+    hud_label("ГОРН   ·   P2", 27, ORANGE, Rect2(906, 54, 600, 34), HORIZONTAL_ALIGNMENT_RIGHT)
     for index in range(2):
         var bar := ProgressBar.new()
         bar.position = Vector2(94 if index == 0 else 906, 96)
@@ -254,6 +303,15 @@ func create_hud() -> void:
         bar.add_theme_stylebox_override("fill", fill)
         ui.add_child(bar)
         health.append(bar)
+        for slot in range(3):
+            var x := (94 if index == 0 else 906) + slot * 202
+            var panel := ColorRect.new()
+            panel.position = Vector2(x, 124)
+            panel.size = Vector2(194, 36)
+            panel.color = Color("#101b2aed")
+            panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+            ui.add_child(panel)
+            skill_labels.append(hud_label("", 18, BLUE if index == 0 else ORANGE, Rect2(x, 130, 194, 29)))
     notice = hud_label("", 57, Color("#e1f4ff"), Rect2(350, 280, 900, 93))
     hud_label("A/D  Движение   W  Прыжок   S  Блок   F/G/H  Удары   Shift  Рывок", 19, Color("#a2c9d7"), Rect2(62, 766, 706, 31), HORIZONTAL_ALIGNMENT_LEFT)
     hud_label("Стрелки  Движение   Num4/5/6  Удары   Shift  Рывок", 19, Color("#d7b6ad"), Rect2(832, 766, 706, 31), HORIZONTAL_ALIGNMENT_RIGHT)
@@ -262,6 +320,13 @@ func create_hud() -> void:
 func update_hud() -> void:
     for i in range(2):
         health[i].value = fighters[i].hp
+        for slot in range(3):
+            var remaining: float = fighters[i].cooldowns[slot]
+            var shortcut: String = ["Z", "X", "C"][slot] if i == 0 else "Num%d" % (slot + 1)
+            var name: String = ABILITIES.KITS[i][slot][0]
+            var label := skill_labels[i * 3 + slot]
+            label.text = "%s   %s" % [shortcut if remaining <= 0 else "%.1f" % remaining, name]
+            label.modulate.a = 1.0 if remaining <= 0 else 0.5
     if paused:
         notice.text = "ПАУЗА"
     elif winner >= 0:
@@ -270,34 +335,50 @@ func update_hud() -> void:
         notice.text = "БОЙ" if ready_time > 0 else ""
 
 func _draw() -> void:
-    draw_rect(Rect2(0, 0, 1600, 900), Color("#0c1421"))
+    draw_rect(Rect2(-400, -400, WIDTH + 800, 1800), Color("#0c1421"))
     for i in range(22):
         var y := 125.0 + i * 26.0
-        draw_rect(Rect2(0, y, 1600, 26), Color("#162b3a").lerp(Color("#0e1827"), float(i) / 22.0))
-    draw_colored_polygon(PackedVector2Array([Vector2(246, 113), Vector2(326, 113), Vector2(850, FLOOR), Vector2(68, FLOOR)]), Color(0.27, 0.83, 0.92, 0.065))
-    draw_colored_polygon(PackedVector2Array([Vector2(1274, 113), Vector2(1354, 113), Vector2(1532, FLOOR), Vector2(750, FLOOR)]), Color(1, 0.36, 0.24, 0.070))
-    for column in [111.0, 406.0, 696.0, 904.0, 1194.0, 1489.0]:
+        draw_rect(Rect2(0, y, WIDTH, 26), Color("#162b3a").lerp(Color("#0e1827"), float(i) / 22.0))
+    for index in range(4):
+        var x := 176 + 734.0 * index
+        var is_blue := index % 2 == 0
+        var slant := 125.0 if is_blue else -125.0
+        draw_colored_polygon(PackedVector2Array([Vector2(x - 23, 114), Vector2(x + 23, 114), Vector2(x + slant + 300, FLOOR), Vector2(x + slant - 300, FLOOR)]), Color(BLUE if is_blue else ORANGE, 0.065))
+        draw_line(Vector2(x - 23, 114), Vector2(x + 23, 114), Color(BLUE if is_blue else ORANGE, 0.62), 4, true)
+    for i in range(10):
+        var column := 108 + i * 260.0
         draw_line(Vector2(column, 171), Vector2(column, FLOOR), Color("#1c3141"), 8)
         draw_line(Vector2(column + 12, 171), Vector2(column + 12, FLOOR), Color("#142433"), 2)
     for y in [391.0, 415.0, 536.0, 560.0]:
-        draw_line(Vector2(89, y), Vector2(1511, y), Color("#1d3141"), 2)
-    draw_arc(Vector2(800, 484), 187, PI, TAU, 70, Color("#233b4b"), 2.0, true)
-    draw_arc(Vector2(800, 484), 166, PI, TAU, 70, Color("#203646"), 2.0, true)
-    draw_line(Vector2(800, 312), Vector2(800, 627), Color("#263c4d"), 2.0)
-    for i in range(18):
+        draw_line(Vector2(89, y), Vector2(WIDTH - 89, y), Color("#1d3141"), 2)
+    for x in [455.0, 1280.0, 2105.0]:
+        draw_arc(Vector2(x, 481), 187, PI, TAU, 70, Color("#233b4b"), 2.0, true)
+        draw_arc(Vector2(x, 481), 166, PI, TAU, 70, Color("#203646"), 2.0, true)
+        draw_line(Vector2(x, 312), Vector2(x, 627), Color("#263c4d"), 2.0)
+    for i in range(32):
         var x := 172.0 + i * 74.0
         draw_rect(Rect2(x, 599, 31, 3), Color("#294758"))
-    draw_rect(Rect2(0, FLOOR, 1600, 220), Color("#0b121d"))
-    draw_rect(Rect2(0, FLOOR + 4, 1600, 47), Color("#182737"))
-    for i in range(13):
+    draw_rect(Rect2(0, FLOOR, WIDTH, 480), Color("#0b121d"))
+    draw_rect(Rect2(0, FLOOR + 4, WIDTH, 47), Color("#182737"))
+    for i in range(21):
         var x := 66.0 + i * 128.0
-        draw_line(Vector2(x, FLOOR + 5), Vector2((x - 800) * 1.23 + 800, FLOOR + 50), Color("#283d4f"), 2.0)
-    draw_line(Vector2(89, FLOOR), Vector2(1511, FLOOR), Color("#6d919f"), 3, true)
-    draw_line(Vector2(103, FLOOR), Vector2(423, FLOOR), Color(BLUE, 0.84), 3, true)
-    draw_line(Vector2(1177, FLOOR), Vector2(1497, FLOOR), Color(ORANGE, 0.84), 3, true)
+        draw_line(Vector2(x, FLOOR + 5), Vector2((x - WIDTH / 2) * 1.16 + WIDTH / 2, FLOOR + 50), Color("#283d4f"), 2.0)
+    draw_line(Vector2(89, FLOOR), Vector2(WIDTH - 89, FLOOR), Color("#6d919f"), 3, true)
+    draw_line(Vector2(103, FLOOR), Vector2(466, FLOOR), Color(BLUE, 0.84), 3, true)
+    draw_line(Vector2(WIDTH - 466, FLOOR), Vector2(WIDTH - 103, FLOOR), Color(ORANGE, 0.84), 3, true)
+    for ledge in PLATFORMS:
+        var left := Vector2(ledge.x, ledge.y)
+        var right := Vector2(ledge.z, ledge.y)
+        draw_colored_polygon(PackedVector2Array([left, right, right + Vector2(-17, 17), left + Vector2(17, 17)]), Color("#1b3042"))
+        draw_line(left, right, Color("#7499ae"), 3.0, true)
+        draw_line(left + Vector2(23, 10), right + Vector2(-23, 10), Color("#355b71"), 3, true)
     for f in fighters:
-        var gap: float = FLOOR - f.position.y
-        draw_set_transform(Vector2(f.position.x, FLOOR - 1), 0.0, Vector2(1, 0.18))
+        var surface := FLOOR
+        for ledge in PLATFORMS:
+            if f.position.x >= ledge.x and f.position.x <= ledge.z and f.position.y <= ledge.y + 1.0:
+                surface = minf(surface, ledge.y)
+        var gap: float = surface - f.position.y
+        draw_set_transform(Vector2(f.position.x, surface - 1), 0.0, Vector2(1, 0.18))
         draw_circle(Vector2.ZERO, 47.0 + gap * 0.13, Color(0.02, 0.05, 0.08, clampf(0.8 - gap * 0.002, 0.25, 0.8)), true, -1.0, true)
         draw_set_transform(Vector2.ZERO)
     for spark in particles:
