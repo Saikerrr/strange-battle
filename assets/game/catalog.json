@@ -1,0 +1,362 @@
+{
+  "roster": [
+    {
+      "id": "ukraine",
+      "name": "УКРАИНА",
+      "accent": "#ffd700",
+      "ultimate": [
+        {
+          "name": "Ультра-дрон",
+          "text": "Дрон стреляет, затем взрывается у цели на 12 урона."
+        },
+        {
+          "name": "Две ракеты",
+          "text": "Две самонаводящиеся ракеты по 20 урона; попадания лечат владельца."
+        },
+        {
+          "name": "Надгробие",
+          "text": "Создаёт надгробие, выпускающее мини-зомби."
+        }
+      ],
+      "passive": {
+        "art": "aura",
+        "name": "Аура зомби",
+        "text": "Каждые 0,6 с наносит 4 урона врагу в радиусе 320. Работает автоматически."
+      }
+    },
+    {
+      "id": "russia",
+      "name": "РОССИЯ",
+      "accent": "#ff7777",
+      "ultimate": [
+        {
+          "name": "Ультра-блокада",
+          "text": "Усиленный блокирующий снаряд."
+        },
+        {
+          "name": "Ультра-медведь",
+          "text": "Медведь хватает и уносит врага."
+        },
+        {
+          "name": "Бомба",
+          "text": "Самонаводящаяся падающая бомба: 15 урона."
+        }
+      ],
+      "passive": {
+        "art": "armor",
+        "name": "Стойкость ультформы",
+        "text": "Входящий урон уменьшен на 50% на время ульты."
+      }
+    },
+    {
+      "id": "america",
+      "name": "АМЕРИКА",
+      "accent": "#f25a5a",
+      "ultimate": [
+        {
+          "name": "Ультра-флаг",
+          "text": "Увеличенный снаряд-флаг."
+        },
+        {
+          "name": "Два орла",
+          "text": "Две крупные птицы атакуют с разных сторон."
+        },
+        {
+          "name": "Щит-бумеранг",
+          "text": "12 урона. Щит возвращается сразу после столкновения."
+        }
+      ],
+      "passive": {
+        "art": "shield",
+        "name": "Защитный щит",
+        "text": "Щит при блоке поглощает до 100 урона; входящий урон снижен вдвое. Полёт: прыжок — вверх, блок — вниз."
+      }
+    },
+    {
+      "id": "china",
+      "name": "КИТАЙ",
+      "accent": "#ffcf3c",
+      "ultimate": [
+        {
+          "name": "Дыхание",
+          "text": "Огонь перед драконом: 15 урона и поджог."
+        },
+        {
+          "name": "Хвост",
+          "text": "Удар вокруг дракона: 12 урона и оглушение."
+        },
+        {
+          "name": "Захват",
+          "text": "Управляемый полёт: 10 при захвате, 15 при взрыве в пасти. КД 10 с."
+        }
+      ],
+      "passive": {
+        "art": "armor",
+        "name": "Стойкость ультформы",
+        "text": "Входящий урон уменьшен на 50% на время ульты."
+      }
+    },
+    {
+      "id": "japan",
+      "name": "ЯПОНИЯ",
+      "accent": "#ff5566",
+      "ultimate": [
+        {
+          "name": "Призрачный рывок",
+          "text": "Рывок с дополнительной призрачной копией."
+        },
+        {
+          "name": "Призрачное парирование",
+          "text": "Парирование с дополнительной атакой копии."
+        },
+        {
+          "name": "Призрачный астрал",
+          "text": "Неуязвимость, движение и усиленное лечение."
+        }
+      ],
+      "passive": {
+        "art": "ghost",
+        "name": "Призрачные копии",
+        "text": "Навыки создают атакующие копии; астрал лечит сильнее. Ультформа уменьшает входящий урон вдвое."
+      }
+    },
+    {
+      "id": "afghanistan",
+      "name": "АФГАНИСТАН",
+      "accent": "#4aff9a",
+      "ultimate": [
+        {
+          "name": "Гранатный хаос",
+          "text": "За 2 с разбрасывает 12 гранат по 10 урона."
+        },
+        {
+          "name": "Миниган",
+          "text": "15 выстрелов по 2 урона за 1,5 с."
+        },
+        {
+          "name": "Самолёт",
+          "text": "Пикирующий самолёт: 30 урона. Один вызов за ульту."
+        }
+      ],
+      "passive": null
+    }
+  ],
+  "abilities": [
+    {
+      "id": "ukraine.drone",
+      "country": "ukraine",
+      "key": "drone",
+      "name": "Дрон",
+      "art": "drone",
+      "cd": 8,
+      "minRange": 100,
+      "maxRange": 1400,
+      "text": "Дрон преследует врага и стреляет снарядами по 3 урона.",
+      "index": 0
+    },
+    {
+      "id": "ukraine.missile",
+      "country": "ukraine",
+      "key": "missile",
+      "name": "Ракета",
+      "art": "missile",
+      "cd": 10,
+      "minRange": 150,
+      "maxRange": 1400,
+      "text": "Самонаводящаяся ракета: 20 урона.",
+      "index": 1
+    },
+    {
+      "id": "ukraine.bombs",
+      "country": "ukraine",
+      "key": "bombs",
+      "name": "Бомбардировка",
+      "art": "bomb",
+      "cd": 10,
+      "minRange": 0,
+      "maxRange": 650,
+      "text": "Пять падающих бомб, по 15 урона за попадание.",
+      "index": 2
+    },
+    {
+      "id": "russia.blockade",
+      "country": "russia",
+      "key": "blockade",
+      "name": "Блокада",
+      "art": "blockade",
+      "cd": 8,
+      "minRange": 100,
+      "maxRange": 1000,
+      "text": "Снаряд блокирует способности противника и наносит 5 урона.",
+      "index": 0
+    },
+    {
+      "id": "russia.bear",
+      "country": "russia",
+      "key": "bear",
+      "name": "Медведь",
+      "art": "bear",
+      "cd": 12,
+      "minRange": 70,
+      "maxRange": 650,
+      "text": "Медведь хватает противника и уносит его.",
+      "index": 1
+    },
+    {
+      "id": "russia.uppercut",
+      "country": "russia",
+      "key": "uppercut",
+      "name": "Балалайка",
+      "art": "balalaika",
+      "cd": 6,
+      "minRange": 0,
+      "maxRange": 140,
+      "text": "Замах 0,5 с, затем удар на 15 урона.",
+      "index": 2
+    },
+    {
+      "id": "america.flag",
+      "country": "america",
+      "key": "flag",
+      "name": "Флаг",
+      "art": "flag",
+      "cd": 10,
+      "minRange": 120,
+      "maxRange": 1100,
+      "text": "Бросок флага: 12 урона при попадании.",
+      "index": 0
+    },
+    {
+      "id": "america.eagle",
+      "country": "america",
+      "key": "eagle",
+      "name": "Орёл",
+      "art": "eagle",
+      "cd": 7,
+      "minRange": 80,
+      "maxRange": 1400,
+      "text": "Хищная птица пикирует на противника.",
+      "index": 1
+    },
+    {
+      "id": "america.burger",
+      "country": "america",
+      "key": "burger",
+      "name": "Бургер",
+      "art": "burger",
+      "cd": 15,
+      "minRange": 0,
+      "maxRange": 3500,
+      "text": "Восстанавливает здоровье тремя порциями.",
+      "index": 2
+    },
+    {
+      "id": "china.noodle",
+      "country": "china",
+      "key": "noodle",
+      "name": "Доширак",
+      "art": "noodles",
+      "cd": 15,
+      "minRange": 80,
+      "maxRange": 700,
+      "text": "Первое нажатие достаёт лапшу. Следующие пять выпускают заряды; затем КД 15 с.",
+      "index": 0
+    },
+    {
+      "id": "china.firework",
+      "country": "china",
+      "key": "firework",
+      "name": "Фейерверк",
+      "art": "firework",
+      "cd": 5,
+      "minRange": 100,
+      "maxRange": 1000,
+      "text": "Взрыв на 10 урона, радиус 180.",
+      "index": 1
+    },
+    {
+      "id": "china.lantern",
+      "country": "china",
+      "key": "lantern",
+      "name": "Фонарь",
+      "art": "lantern",
+      "cd": 10,
+      "minRange": 0,
+      "maxRange": 650,
+      "text": "Фонарь 4 с атакует противника в радиусе 300.",
+      "index": 2
+    },
+    {
+      "id": "japan.stance",
+      "country": "japan",
+      "key": "stance",
+      "name": "Рывок",
+      "art": "katana",
+      "cd": 10,
+      "minRange": 80,
+      "maxRange": 600,
+      "text": "Подготовка 0,5 с, рывок сквозь врага: 15 урона.",
+      "index": 0
+    },
+    {
+      "id": "japan.parry",
+      "country": "japan",
+      "key": "parry",
+      "name": "Парирование",
+      "art": "parry",
+      "cd": 15,
+      "minRange": 0,
+      "maxRange": 180,
+      "text": "Двуручная стойка отражает ближний удар: 20 урона и стан атакующему.",
+      "index": 1
+    },
+    {
+      "id": "japan.astral",
+      "country": "japan",
+      "key": "astral",
+      "name": "Астрал",
+      "art": "smoke",
+      "cd": 10,
+      "minRange": 0,
+      "maxRange": 3500,
+      "text": "Временная неуязвимость и лечение. Повторное нажатие завершает астрал.",
+      "index": 2
+    },
+    {
+      "id": "afghanistan.c4",
+      "country": "afghanistan",
+      "key": "c4",
+      "name": "C4",
+      "art": "bomb",
+      "cd": 5,
+      "minRange": 60,
+      "maxRange": 600,
+      "text": "Удерживай для дальнего броска. До пяти бомб. Q / Num7 подрывает свои: по 15 урона врагу, обоим толчок.",
+      "index": 0
+    },
+    {
+      "id": "afghanistan.rifle",
+      "country": "afghanistan",
+      "key": "rifle",
+      "name": "Автомат",
+      "art": "rifle",
+      "cd": 8,
+      "minRange": 100,
+      "maxRange": 1000,
+      "text": "Быстрая очередь: 5 патронов по 5 урона. Урон прерывает стрельбу.",
+      "index": 1
+    },
+    {
+      "id": "afghanistan.net",
+      "country": "afghanistan",
+      "key": "net",
+      "name": "Сетка",
+      "art": "net",
+      "cd": 10,
+      "minRange": 50,
+      "maxRange": 800,
+      "text": "Попадание удерживает врага на месте 2 с. Атаковать и защищаться он может.",
+      "index": 2
+    }
+  ]
+}

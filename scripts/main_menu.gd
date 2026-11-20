@@ -1,5 +1,7 @@
 extends Control
 
+signal mode_selected(mode: String)
+
 const MENU_WIDTH := 1600.0
 const MENU_HEIGHT := 900.0
 const BACKGROUND := preload("res://assets/menu/background.png")
@@ -72,8 +74,29 @@ func _ready() -> void:
         button.mouse_exited.connect(_on_button_hover.bind(index, false))
         button.button_down.connect(_on_button_down.bind(index))
         button.button_up.connect(_on_button_up.bind(index))
+        var mode: String = ["pvp", "pve", "practice"][index]
+        button.pressed.connect(func(): mode_selected.emit(mode))
         content.add_child(button)
         buttons.append(button)
+
+    var draft := Button.new()
+    draft.text = "ABILITY DRAFT"
+    draft.position = Vector2(664, 730)
+    draft.size = Vector2(272, 57)
+    draft.focus_mode = Control.FOCUS_NONE
+    draft.add_theme_font_size_override("font_size", 24)
+    var panel := StyleBoxFlat.new()
+    panel.bg_color = Color("#181e36e5")
+    panel.border_color = Color("#8f8ac4")
+    panel.set_border_width_all(2)
+    panel.set_corner_radius_all(8)
+    draft.add_theme_stylebox_override("normal", panel)
+    var hover := panel.duplicate() as StyleBoxFlat
+    hover.bg_color = Color("#363052")
+    draft.add_theme_stylebox_override("hover", hover)
+    draft.add_theme_stylebox_override("pressed", hover)
+    draft.pressed.connect(func(): mode_selected.emit("draft"))
+    content.add_child(draft)
 
     resized.connect(_layout)
     _layout()
